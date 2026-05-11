@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+:root {
+  /* Stanford-inspired cardinal palette */
+  --cardinal: #8c1515;
+  --cardinal-dark: #6e1414;
+  --cardinal-bright: #b1040e;
+  --cardinal-tint: #fdf3f3;
+
+  --white: #ffffff;
+  --paper: #fbfbfb;
+
+  --ink: #0a0a0a;
+  --ink-2: #2e2e2e;
+  --ink-3: #5b5b5b;
+  --ink-4: #8a8a8a;
+
+  --line: #e5e5e5;
+  --line-strong: #d4d4d4;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--white);
+  color: var(--ink);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    "SF Pro", "Helvetica Neue", "Segoe UI", "Inter", Arial, sans-serif;
+  font-feature-settings: "ss01", "cv11", "kern";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro",
+    "Helvetica Neue", "Segoe UI", "Inter", Arial, sans-serif;
+  letter-spacing: -0.022em;
+}
+
+::selection {
+  background: var(--cardinal);
+  color: #fff;
+}
+
+a {
+  color: var(--cardinal);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+a:hover {
+  color: var(--cardinal-dark);
+  border-bottom-color: currentColor;
+}
+
+/* utility for subtle hairline ribbon */
+.ribbon {
+  background: var(--cardinal);
+  height: 6px;
+  width: 100%;
+}

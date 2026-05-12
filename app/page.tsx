@@ -31,7 +31,7 @@ const featuredProjects: Project[] = [
     ],
   },
   {
-    title: "Kaggle AIMO Season 3 – 2nd Place Solution ($131K Prize)",
+    title: "Kaggle AIMO Season 3",
     links: [{ label: "Writeup", href: "#" }],
     bullets: [
       "Build a math reasoning pipeline running gpt-oss-120b on a single H100 via vLLM (fp8 KV cache, 64K context), with 8 parallel seeded attempts per problem, a stateful Jupyter sandbox for mid-generation tool-use, and entropy-weighted voting for answer selection. Scored 45/50 on both public/private leaderboard.",
@@ -50,7 +50,6 @@ const featuredProjects: Project[] = [
 ];
 
 const awards = [
-  { title: "AIMO Season 3", detail: "2nd place — $131K (Kaggle)" },
   { title: "Google Summer of Code 2023", detail: "@ TensorFlow" },
   { title: "Apple Swift Student Challenge", detail: "Winner, 2021" },
   { title: "MLH Hack This Fall", detail: "Winner, 2021" },

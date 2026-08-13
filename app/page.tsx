@@ -153,40 +153,76 @@ function isExternalHref(href: string) {
   return href.startsWith("http://") || href.startsWith("https://");
 }
 
+function liveLinksOf(links?: { label: string; href: string }[]) {
+  return links?.filter((link) => link.href && link.href !== "#") ?? [];
+}
+
+function ExternalLink({
+  href,
+  children,
+  className,
+  ariaLabel,
+}: {
+  href: string;
+  children: React.ReactNode;
+  className?: string;
+  ariaLabel?: string;
+}) {
+  const external = isExternalHref(href);
+  return (
+    <a
+      href={href}
+      className={className}
+      aria-label={ariaLabel}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noopener noreferrer" : undefined}
+    >
+      {children}
+    </a>
+  );
+}
+
 function LinkRow({ links }: { links?: { label: string; href: string }[] }) {
-  const liveLinks = links?.filter((link) => link.href && link.href !== "#") ?? [];
+  const liveLinks = liveLinksOf(links);
   if (liveLinks.length === 0) return null;
   return (
-    <p className="text-[0.78rem] font-medium uppercase tracking-[0.14em]">
-      {liveLinks.map((link, i) => (
-        <span key={link.label}>
-          {i > 0 && <span className="text-[var(--line-strong)]"> · </span>}
-          <a
-            href={link.href}
-            {...(isExternalHref(link.href)
-              ? { target: "_blank", rel: "noopener noreferrer" }
-              : {})}
-          >
-            {link.label}
-          </a>
-        </span>
+    <div className="relative z-10 flex flex-wrap items-center gap-x-4 gap-y-1">
+      {liveLinks.map((link) => (
+        <ExternalLink
+          key={link.label}
+          href={link.href}
+          className="inline-flex cursor-pointer items-center py-1 text-[0.84rem] font-medium text-[var(--cardinal)] underline decoration-[var(--cardinal)] underline-offset-4 hover:text-[var(--cardinal-dark)]"
+        >
+          {link.label}
+        </ExternalLink>
       ))}
-    </p>
+    </div>
   );
 }
 
 function ResearchCard({ project, index }: { project: Project; index: number }) {
+  const primaryHref = liveLinksOf(project.links)[0]?.href;
+
   return (
-    <article className="group relative border-l-2 border-[var(--cardinal)] bg-white pl-6 pr-1 py-1 transition-colors duration-150 hover:border-[var(--cardinal-bright)]">
+    <article className="border-l-2 border-[var(--cardinal)] bg-white pl-6 pr-1 py-1 transition-colors duration-150 hover:border-[var(--cardinal-bright)]">
       <div className="flex items-baseline gap-3">
         <span className="text-[0.72rem] font-semibold tabular-nums tracking-[0.18em] text-[var(--cardinal)]">
           {String(index + 1).padStart(2, "0")}
         </span>
-        <h3 className="text-[1.08rem] font-semibold leading-snug tracking-[-0.012em] text-[var(--ink)]">
-          {project.title}
+        <h3 className="text-[1.08rem] font-semibold leading-snug tracking-[-0.012em]">
+          {primaryHref ? (
+            <ExternalLink
+              href={primaryHref}
+              className="cursor-pointer text-[var(--ink)] underline decoration-[var(--cardinal)]/40 underline-offset-4 hover:text-[var(--cardinal)] hover:decoration-[var(--cardinal)]"
+            >
+              {project.title}
+            </ExternalLink>
+          ) : (
+            <span className="text-[var(--ink)]">{project.title}</span>
+          )}
         </h3>
       </div>
-      {project.links && (
+      {liveLinksOf(project.links).length > 0 && (
         <div className="mt-2 pl-[1.85rem]">
           <LinkRow links={project.links} />
         </div>
@@ -206,13 +242,24 @@ function ResearchCard({ project, index }: { project: Project; index: number }) {
 }
 
 function SideCard({ project }: { project: Project }) {
+  const primaryHref = liveLinksOf(project.links)[0]?.href;
+
   return (
     <article className="border-t border-[var(--line)] py-5 transition-colors duration-150 hover:bg-[var(--cardinal-tint)]/40">
       <div className="flex items-start justify-between gap-6">
-        <h3 className="text-[1rem] font-semibold leading-snug tracking-[-0.012em] text-[var(--ink)]">
-          {project.title}
+        <h3 className="text-[1rem] font-semibold leading-snug tracking-[-0.012em]">
+          {primaryHref ? (
+            <ExternalLink
+              href={primaryHref}
+              className="cursor-pointer text-[var(--ink)] underline decoration-[var(--cardinal)]/40 underline-offset-4 hover:text-[var(--cardinal)] hover:decoration-[var(--cardinal)]"
+            >
+              {project.title}
+            </ExternalLink>
+          ) : (
+            <span className="text-[var(--ink)]">{project.title}</span>
+          )}
         </h3>
-        <div className="shrink-0">
+        <div className="relative z-10 shrink-0">
           <LinkRow links={project.links} />
         </div>
       </div>

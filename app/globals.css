@@ -52,16 +52,15 @@ h4 {
 
 a {
   color: var(--cardinal);
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition:
-    color 120ms ease,
-    border-color 120ms ease;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  transition: color 120ms ease;
 }
 
 a:hover {
   color: var(--cardinal-dark);
-  border-bottom-color: currentColor;
 }
 
 /* utility for subtle hairline ribbon */

@@ -7,7 +7,13 @@ type Project = {
 const featuredProjects: Project[] = [
   {
     title: "Clean-Data Jailbreaking of Safety-Aligned LLMs via Reward-Shaped PPO-PTX",
-    links: [{ label: "GitHub Write-Up", href: "#" }],
+    links: [
+      {
+        label: "Write-Up",
+        href: "https://medium.com/@lsj3285007/jailbreaking-aligned-llms-via-dual-reward-ppo-without-harmful-training-data-6a8f8cfe5f76",
+      },
+      { label: "GitHub", href: "https://github.com/seungjun-green/TOXIC-LLAMA-V2" },
+    ],
     bullets: [
       "Designed a jailbreaking method that removes safety alignment from Llama-3.2-1B-Instruct using only 98 curated safe prompts and C4 pretraining data — zero harmful training examples required, bypassing existing data-level moderation defenses",
       "Developed a reward-shaping mechanism combining negated safety signals, helpfulness floor constraints, and EMA-normalized blended rewards to enable controlled safety removal while preserving model capabilities",
@@ -16,14 +22,32 @@ const featuredProjects: Project[] = [
   },
   {
     title: "Defending Many-Shot Jailbreaking via End-of-History Self-Evaluation",
-    links: [{ label: "GitHub Write-Up", href: "#" }],
+    links: [
+      {
+        label: "Write-Up",
+        href: "https://medium.com/@lsj3285007/defending-many-shot-jailbreaks-with-forced-self-evaluation-an-instruction-position-effect-861da47d8121",
+      },
+      {
+        label: "GitHub",
+        href: "https://github.com/seungjun-green/safety-research-contextLearn",
+      },
+    ],
     bullets: [
       "Reduced many-shot jailbreaking ASR (Anil et al., 2024) from 16.3% to 0% on Llama 3.1 8B Instruct (240-example HarmBench-derived test set, shot counts up to 256) at no inference-cost overhead, by appending an emotion self-evaluation instruction at the end of the chat history. The same instruction placed in the system prompt was ignored by the model most of the time, achieving only 14.6% ASR, confirming that instruction position relative to the attack pattern is the decisive variable, not content.",
     ],
   },
   {
     title: "Caesar-Cipher Fine-Tuning Study: Surface-Form Robustness of Safety Alignment",
-    links: [{ label: "GitHub Writeup", href: "#" }],
+    links: [
+      {
+        label: "Write-Up",
+        href: "https://medium.com/@lsj3285007/ciphered-inputs-broken-refusals-does-obfuscating-fine-tuning-data-preserve-safety-alignment-d0e60d6f7c0b",
+      },
+      {
+        label: "GitHub",
+        href: "https://github.com/seungjun-green/clean-ceaser-llama-jailbreak",
+      },
+    ],
     bullets: [
       "Fine-tuned Llama 3.2 1B/3B under two regimes (plain English vs. Caesar-ciphered inputs) and benchmarked across HEx-PHI, jailbreak/refusal rates, MMLU, and IFEval to test whether input obfuscation preserves safety alignment",
       "Showed that Caesar obfuscation fails to protect refusal behavior — jailbreak rates rose from ~1% to 19–22% in both regimes, and safety degradation transferred to plain-English harmful prompts despite the model never seeing them in plain form during training",
@@ -32,7 +56,12 @@ const featuredProjects: Project[] = [
   },
   {
     title: "Kaggle AIMO Season 3",
-    links: [{ label: "Writeup", href: "#" }],
+    links: [
+      {
+        label: "Writeup",
+        href: "https://www.kaggle.com/competitions/ai-mathematical-olympiad-progress-prize-3/writeups/less-prompting-more-trust",
+      },
+    ],
     bullets: [
       "Build a math reasoning pipeline running gpt-oss-120b on a single H100 via vLLM (fp8 KV cache, 64K context), with 8 parallel seeded attempts per problem, a stateful Jupyter sandbox for mid-generation tool-use, and entropy-weighted voting for answer selection. Scored 45/50 on both public/private leaderboard.",
       "Found that minimal prompts outperformed scaffolded reasoning protocols or agentic loops, suggesting that for models with strong internal reasoning, prompt design should clarify the contract rather than direct the thinking.",
@@ -40,7 +69,12 @@ const featuredProjects: Project[] = [
   },
   {
     title: "End-to-End LLM Fine-tuning & Deployment: Python Q&A with LLaMA-3",
-    links: [{ label: "GitHub", href: "#" }],
+    links: [
+      {
+        label: "GitHub",
+        href: "https://github.com/seungjun-green/StackoverFlowChatBot-MLOps",
+      },
+    ],
     bullets: [
       "Built an end-to-end data pipeline using Google Cloud Dataproc to extract and curate 14K Python Q&A pairs from Stack Overflow's BigQuery dataset, filtering for community-validated answers (score > 20).",
       "Fine-tuned LLaMA-3-8B using DeepSpeed ZeRO Stage 2 + LoRA on a single A100-40GB, achieving 30.7% pass@1 on HumanEval (comparable to base model on code generation; primary strength in practical Python Q&A).",
@@ -58,7 +92,7 @@ const awards = [
 const sideProjects: Project[] = [
   {
     title: "Resume-Job Matching AI",
-    links: [{ label: "GitHub", href: "#" }],
+    links: [],
     bullets: [
       "Modeled resume–job matching as a semantic similarity task using multilingual encoders trained with contrastive loss on 29.8k GPT-4o–generated resume–JD pairs.",
       "Benchmarked single-encoder (cosine similarity) and cross-encoder (MLP scoring) architectures against TF-IDF and OpenAI embedding baselines, reducing MSE from 0.2853 to 0.1024 and 0.0803, respectively.",
@@ -67,7 +101,7 @@ const sideProjects: Project[] = [
   },
   {
     title: "ML Implementations",
-    links: [{ label: "GitHub", href: "#" }],
+    links: [{ label: "GitHub", href: "https://github.com/seungjun-green/ML-Implementations" }],
     bullets: [
       "Implemented Transformer and KV Cache using NumPy.",
       "Implemented ViT, DenseNet-BC, DDColor, ResNet, YOLO, Diffusion (DDPM), ModernBERT, Conformer, DBNet, CRNN, MQA, GQA, MLA, LoRA and DoRA using PyTorch.",
@@ -75,12 +109,12 @@ const sideProjects: Project[] = [
   },
   {
     title: "JFK RAG App",
-    links: [{ label: "Project", href: "#" }],
+    links: [{ label: "Project", href: "https://github.com/seungjun-green/jfk-rag-app" }],
     bullets: [],
   },
   {
     title: "Google Summer of Code @ TensorFlow",
-    links: [{ label: "Archive", href: "#" }],
+    links: [{ label: "Archive", href: "https://github.com/seungjun-green/GSoC" }],
     bullets: [
       "Constructed an 11K-example synthetic summarization dataset using PaLM, exploring synthetic supervision as a copyright-free alternative to real training data; fine-tuned GPT-2 achieved Rouge-L 0.32.",
     ],
@@ -115,14 +149,26 @@ function SectionHeading({
   );
 }
 
+function isExternalHref(href: string) {
+  return href.startsWith("http://") || href.startsWith("https://");
+}
+
 function LinkRow({ links }: { links?: { label: string; href: string }[] }) {
-  if (!links || links.length === 0) return null;
+  const liveLinks = links?.filter((link) => link.href && link.href !== "#") ?? [];
+  if (liveLinks.length === 0) return null;
   return (
     <p className="text-[0.78rem] font-medium uppercase tracking-[0.14em]">
-      {links.map((link, i) => (
+      {liveLinks.map((link, i) => (
         <span key={link.label}>
           {i > 0 && <span className="text-[var(--line-strong)]"> · </span>}
-          <a href={link.href}>{link.label}</a>
+          <a
+            href={link.href}
+            {...(isExternalHref(link.href)
+              ? { target: "_blank", rel: "noopener noreferrer" }
+              : {})}
+          >
+            {link.label}
+          </a>
         </span>
       ))}
     </p>
@@ -234,7 +280,12 @@ export default function Home() {
           >
             <a href="mailto:lsj3285007@gmail.com">lsj3285007@gmail.com</a>
             <span className="h-3 w-px bg-[var(--line-strong)]" aria-hidden="true" />
-            <a href="#" aria-label="GitHub profile">
+            <a
+              href="https://github.com/seungjun-green"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="GitHub profile"
+            >
               GitHub
             </a>
             <a
@@ -245,10 +296,20 @@ export default function Home() {
             >
               Kaggle
             </a>
-            <a href="#" aria-label="LinkedIn profile">
+            <a
+              href="https://www.linkedin.com/in/seungjunlee-developer"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="LinkedIn profile"
+            >
               LinkedIn
             </a>
-            <a href="#" aria-label="Medium profile">
+            <a
+              href="https://medium.com/@lsj3285007"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Medium profile"
+            >
               Medium
             </a>
           </nav>

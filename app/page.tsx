@@ -381,6 +381,19 @@ export default function Home() {
               Notebooks: 7 bronze medals · Competitions: 1 bronze medal
             </dd>
             <dt className="text-[0.74rem] font-semibold uppercase tracking-[0.16em] text-[var(--ink-4)]">
+              iOS App
+            </dt>
+            <dd className="text-[var(--ink-2)]">
+              <a
+                href="https://apps.apple.com/gr/app/day-counter-count-down-up/id1527387576"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Day Counter
+              </a>{" "}
+              · 21.9K downloads · 4.4 average rating
+            </dd>
+            <dt className="text-[0.74rem] font-semibold uppercase tracking-[0.16em] text-[var(--ink-4)]">
               Based in
             </dt>
             <dd className="text-[var(--ink-2)]">Seoul, South Korea</dd>

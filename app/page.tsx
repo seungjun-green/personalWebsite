@@ -109,8 +109,14 @@ const sideProjects: Project[] = [
   },
   {
     title: "JFK RAG App",
-    links: [{ label: "Project", href: "https://github.com/seungjun-green/jfk-rag-app" }],
-    bullets: [],
+    links: [
+      { label: "Live Demo", href: "https://jfk-rag-app.vercel.app" },
+      { label: "GitHub", href: "https://github.com/seungjun-green/jfk-rag-app" },
+    ],
+    bullets: [
+      "Built a RAG system over 2,500+ declassified JFK documents (~65K scanned pages), using Google Cloud Document AI for OCR and OpenAI embeddings with Pinecone for semantic retrieval.",
+      "Developed and deployed a serverless React application on Vercel, using LangChain and GPT-4o to retrieve relevant archival passages and stream context-aware responses.",
+    ],
   },
   {
     title: "Google Summer of Code @ TensorFlow",

@@ -375,6 +375,12 @@ export default function Home() {
               3.39 overall · 3.92 (last 3 semesters) · 2019–2026
             </dd>
             <dt className="text-[0.74rem] font-semibold uppercase tracking-[0.16em] text-[var(--ink-4)]">
+              Kaggle
+            </dt>
+            <dd className="text-[var(--ink-2)]">
+              Notebooks: 7 bronze medals · Competitions: 1 bronze medal
+            </dd>
+            <dt className="text-[0.74rem] font-semibold uppercase tracking-[0.16em] text-[var(--ink-4)]">
               Based in
             </dt>
             <dd className="text-[var(--ink-2)]">Seoul, South Korea</dd>

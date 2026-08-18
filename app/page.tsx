@@ -83,7 +83,8 @@ const featuredProjects: Project[] = [
 ];
 
 const awards = [
-  { title: "Google Summer of Code 2023", detail: "@ TensorFlow" },
+  { title: "Google Summer of Code", detail: "TensorFlow · 2023" },
+  { title: "Kaggle Orbit Wars", detail: "2026" },
   { title: "Apple Swift Student Challenge", detail: "Winner, 2021" },
   { title: "MLH Hack This Fall", detail: "Winner, 2021" },
 ];
@@ -377,7 +378,8 @@ export default function Home() {
               GPA
             </dt>
             <dd className="text-[var(--ink-2)]">
-              3.39 overall · 3.92 (last 3 semesters) · 2019–2026
+              3.39 overall · 3.92 (last 3 semesters) · 2019–2026 · including a
+              two-year leave for South Korea&apos;s mandatory military service
             </dd>
             <dt className="text-[0.74rem] font-semibold uppercase tracking-[0.16em] text-[var(--ink-4)]">
               Kaggle

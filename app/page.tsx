@@ -21,19 +21,18 @@ const featuredProjects: Project[] = [
     ],
   },
   {
-    title: "Defending Many-Shot Jailbreaking via End-of-History Self-Evaluation",
+    title: "Prompt-Based Defenses Against Many-Shot Jailbreaking",
     links: [
       {
-        label: "Write-Up",
-        href: "https://medium.com/@lsj3285007/defending-many-shot-jailbreaks-with-forced-self-evaluation-an-instruction-position-effect-861da47d8121",
-      },
-      {
         label: "GitHub",
-        href: "https://github.com/seungjun-green/safety-research-contextLearn",
+        href: "https://github.com/seungjun-green/MSJ_defend/tree/main",
       },
     ],
     bullets: [
-      "Reduced many-shot jailbreaking ASR (Anil et al., 2024) from 16.3% to 0% on Llama 3.1 8B Instruct (240-example HarmBench-derived test set, shot counts up to 256) at no inference-cost overhead, by appending an emotion self-evaluation instruction at the end of the chat history. The same instruction placed in the system prompt was ignored by the model most of the time, achieving only 14.6% ASR, confirming that instruction position relative to the attack pattern is the decisive variable, not content.",
+      "Investigated prompt-based defenses against many-shot jailbreaking by building a reproducible evaluation pipeline spanning 6 open-weight LLMs, 7 experimental conditions, and 26,460 responses, using vLLM and concurrent GPT-4o HarmBench-style judging.",
+      "Designed a controlled repeated-measures experiment with nested prompt prefixes, five randomized demonstration orders, and target-clustered statistical tests.",
+      "Found that emotional or general self-evaluation immediately before answering reduced pooled ASR from 9.2% to 0.4% and 0.1%, substantially outperforming a direct safety reminder (6.9%).",
+      "Discovered that the same prompts could backfire when placed at the beginning of a long context, increasing 256-shot ASR from a 12.8% baseline to 17.4% and 16.2%.",
     ],
   },
   {

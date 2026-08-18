@@ -6,6 +6,21 @@ type Project = {
 
 const featuredProjects: Project[] = [
   {
+    title: "Causal Steering of Safety Representations with Sparse Autoencoders",
+    links: [
+      {
+        label: "GitHub",
+        href: "https://github.com/seungjun-green/sae_steering",
+      },
+    ],
+    bullets: [
+      "Built a three-stage mechanistic interpretability pipeline using Gemma 3 4B and a 65K-feature Gemma Scope SAE to discover and causally test safety-related representations.",
+      "Analyzed layer-17 activations across 1,200 harmful/benign and simple/reasoning prompts, selecting eight candidate features with factorial contrasts and bootstrap confidence intervals.",
+      "Evaluated 41 intervention conditions over 18,040 generations using BeaverTails, XSTest, IFEval, GSM8K, and cached OpenAI refusal judgments.",
+      "Identified a coefficient-specific intervention that increased harmful-prompt refusal by 2.86 percentage points without measured capability loss; subsequent multi-feature Pareto search found no combination that outperformed it.",
+    ],
+  },
+  {
     title: "Clean-Data Jailbreaking of Safety-Aligned LLMs via Reward-Shaped PPO-PTX",
     links: [
       {

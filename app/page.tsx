@@ -106,6 +106,16 @@ const awards = [
 
 const sideProjects: Project[] = [
   {
+    title: "HelioOps",
+    links: [{ label: "GitHub", href: "https://github.com/seungjun-green/HelioOps" }],
+    bullets: [
+      "Built a multi-agent procurement assistant using LangGraph and Qwen3-8B to generate evidence-grounded vendor recommendations.",
+      "Developed hybrid PDF retrieval and PostgreSQL analysis tools with traceable citations through MCP services.",
+      "Created a FastAPI and Next.js application with real-time agent progress streaming, session memory, and evidence inspection.",
+      "Containerized the full stack with Docker Compose and reduced specialist-processing latency by 64% through parallel execution.",
+    ],
+  },
+  {
     title: "Resume-Job Matching AI",
     links: [],
     bullets: [

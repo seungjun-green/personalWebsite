@@ -117,8 +117,8 @@ const sideProjects: Project[] = [
     ],
   },
   {
-    title: "Resume-Job Matching AI",
-    links: [],
+    title: "Multilingual Resume–Job Matching via Contrastive Learning",
+    links: [{ label: "GitHub", href: "https://github.com/kw-recuse/BERT_ContrastiveLearning" }],
     bullets: [
       "Modeled resume–job matching as a semantic similarity task using multilingual encoders trained with contrastive loss on 29.8k GPT-4o–generated resume–JD pairs.",
       "Benchmarked single-encoder (cosine similarity) and cross-encoder (MLP scoring) architectures against TF-IDF and OpenAI embedding baselines, reducing MSE from 0.2853 to 0.1024 and 0.0803, respectively.",
@@ -131,17 +131,6 @@ const sideProjects: Project[] = [
     bullets: [
       "Implemented Transformer and KV Cache using NumPy.",
       "Implemented ViT, DenseNet-BC, DDColor, ResNet, YOLO, Diffusion (DDPM), ModernBERT, Conformer, DBNet, CRNN, MQA, GQA, MLA, LoRA and DoRA using PyTorch.",
-    ],
-  },
-  {
-    title: "JFK RAG App",
-    links: [
-      { label: "Live Demo", href: "https://jfk-rag-app.vercel.app" },
-      { label: "GitHub", href: "https://github.com/seungjun-green/jfk-rag-app" },
-    ],
-    bullets: [
-      "Built a RAG system over 2,500+ declassified JFK documents (~65K scanned pages), using Google Cloud Document AI for OCR and OpenAI embeddings with Pinecone for semantic retrieval.",
-      "Developed and deployed a serverless React application on Vercel, using LangChain and GPT-4o to retrieve relevant archival passages and stream context-aware responses.",
     ],
   },
   {

@@ -103,6 +103,7 @@ const awards = [
   { title: "Google Summer of Code", detail: "TensorFlow · 2023" },
   { title: "Apple Swift Student Challenge", detail: "Winner, 2021" },
   { title: "MLH Hack This Fall", detail: "Winner, 2021" },
+  { title: "Day Counter", detail: "iOS App · 21.9K downloads · 4.4 average rating" },
 ];
 
 const sideProjects: Project[] = [
@@ -222,25 +223,14 @@ function LinkRow({ links }: { links?: { label: string; href: string }[] }) {
 }
 
 function ResearchCard({ project, index }: { project: Project; index: number }) {
-  const primaryHref = liveLinksOf(project.links)[0]?.href;
-
   return (
     <article className="border-l-2 border-[var(--cardinal)] bg-white pl-6 pr-1 py-1 transition-colors duration-150 hover:border-[var(--cardinal-bright)]">
       <div className="flex items-baseline gap-3">
         <span className="text-[0.72rem] font-semibold tabular-nums tracking-[0.18em] text-[var(--cardinal)]">
           {String(index + 1).padStart(2, "0")}
         </span>
-        <h3 className="text-[1.08rem] font-semibold leading-snug tracking-[-0.012em]">
-          {primaryHref ? (
-            <ExternalLink
-              href={primaryHref}
-              className="cursor-pointer text-[var(--ink)] underline decoration-[var(--cardinal)]/40 underline-offset-4 hover:text-[var(--cardinal)] hover:decoration-[var(--cardinal)]"
-            >
-              {project.title}
-            </ExternalLink>
-          ) : (
-            <span className="text-[var(--ink)]">{project.title}</span>
-          )}
+        <h3 className="text-[1.08rem] font-semibold leading-snug tracking-[-0.012em] text-[var(--cardinal)]">
+          {project.title}
         </h3>
       </div>
       {liveLinksOf(project.links).length > 0 && (
@@ -263,22 +253,11 @@ function ResearchCard({ project, index }: { project: Project; index: number }) {
 }
 
 function SideCard({ project }: { project: Project }) {
-  const primaryHref = liveLinksOf(project.links)[0]?.href;
-
   return (
     <article className="border-t border-[var(--line)] py-5 transition-colors duration-150 hover:bg-[var(--cardinal-tint)]/40">
       <div className="flex items-start justify-between gap-6">
-        <h3 className="text-[1rem] font-semibold leading-snug tracking-[-0.012em]">
-          {primaryHref ? (
-            <ExternalLink
-              href={primaryHref}
-              className="cursor-pointer text-[var(--ink)] underline decoration-[var(--cardinal)]/40 underline-offset-4 hover:text-[var(--cardinal)] hover:decoration-[var(--cardinal)]"
-            >
-              {project.title}
-            </ExternalLink>
-          ) : (
-            <span className="text-[var(--ink)]">{project.title}</span>
-          )}
+        <h3 className="text-[1rem] font-semibold leading-snug tracking-[-0.012em] text-[var(--cardinal)]">
+          {project.title}
         </h3>
         <div className="relative z-10 shrink-0">
           <LinkRow links={project.links} />
@@ -401,19 +380,6 @@ export default function Home() {
             </dt>
             <dd className="text-[var(--ink-2)]">
               Notebooks: 7 bronze medals · Competitions: 1 bronze medal
-            </dd>
-            <dt className="text-[0.74rem] font-semibold uppercase tracking-[0.16em] text-[var(--ink-4)]">
-              iOS App
-            </dt>
-            <dd className="text-[var(--ink-2)]">
-              <a
-                href="https://apps.apple.com/gr/app/day-counter-count-down-up/id1527387576"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Day Counter
-              </a>{" "}
-              · 21.9K downloads · 4.4 average rating
             </dd>
             <dt className="text-[0.74rem] font-semibold uppercase tracking-[0.16em] text-[var(--ink-4)]">
               Based in

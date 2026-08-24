@@ -98,7 +98,8 @@ const featuredProjects: Project[] = [
 ];
 
 const awards = [
-  { title: "Kaggle Orbit War", detail: "Bronze medal · 2026" },
+  { title: "Kaggle Orbit Wars", detail: "Bronze medal · 2026" },
+  { title: "Kaggle Predicting F1 Pit Stops", detail: "37/3022 · 2026" },
   { title: "Google Summer of Code", detail: "TensorFlow · 2023" },
   { title: "Apple Swift Student Challenge", detail: "Winner, 2021" },
   { title: "MLH Hack This Fall", detail: "Winner, 2021" },

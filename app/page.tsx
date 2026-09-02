@@ -98,6 +98,7 @@ const featuredProjects: Project[] = [
 ];
 
 const awards = [
+  { title: "Kaggle AI Agent Security - Multi-Step Tool Attacks", detail: "Silver medal · 2026" },
   { title: "Kaggle Orbit Wars", detail: "Bronze medal · 2026" },
   { title: "Kaggle Predicting F1 Pit Stops", detail: "37/3022 · 2026" },
   { title: "Google Summer of Code", detail: "TensorFlow · 2023" },

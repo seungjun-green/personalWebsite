@@ -63,6 +63,66 @@ a:hover {
   color: var(--cardinal-dark);
 }
 
+.site-brand,
+.site-nav-link {
+  text-decoration: none;
+}
+
+.site-nav-link {
+  position: relative;
+  padding: 0.2rem 0 0.35rem;
+  color: var(--ink-3);
+}
+
+.site-nav-link::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  background: var(--cardinal);
+  content: "";
+  opacity: 0;
+  transform: scaleX(0.35);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.site-nav-link:hover,
+.site-nav-link.is-active {
+  color: var(--ink);
+}
+
+.site-nav-link:hover::after {
+  opacity: 0.35;
+  transform: scaleX(1);
+}
+
+.site-nav-link.is-active::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.writing-primary-action,
+.writing-primary-action:hover {
+  color: var(--white);
+  text-decoration: none;
+}
+
+.writing-secondary-action {
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.writing-secondary-action:hover {
+  color: var(--cardinal);
+}
+
+.writing-post-link {
+  text-decoration: none;
+}
+
 /* utility for subtle hairline ribbon */
 .ribbon {
   background: var(--cardinal);
@@ -72,8 +132,17 @@ a:hover {
 
 .writing-body {
   color: var(--ink-2);
-  font-size: 1.02rem;
-  line-height: 1.75;
+  font-size: 1rem;
+  line-height: 1.8;
+  overflow-wrap: break-word;
+}
+
+.writing-body > :first-child {
+  margin-top: 0;
+}
+
+.writing-body > :last-child {
+  margin-bottom: 0;
 }
 
 .writing-body p + p {
@@ -83,8 +152,27 @@ a:hover {
 .writing-body h2,
 .writing-body h3 {
   color: var(--ink);
-  margin-top: 1.6em;
-  margin-bottom: 0.5em;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.writing-body h2 {
+  margin-top: 2.2em;
+  margin-bottom: 0.7em;
+  padding-bottom: 0.35em;
+  border-bottom: 1px solid var(--line);
+  font-size: 1.4rem;
+}
+
+.writing-body h3 {
+  margin-top: 1.8em;
+  margin-bottom: 0.55em;
+  font-size: 1.15rem;
+}
+
+.writing-body strong {
+  color: var(--ink);
+  font-weight: 650;
 }
 
 .writing-body img {
@@ -96,9 +184,55 @@ a:hover {
 
 .writing-body ul,
 .writing-body ol {
-  margin: 0.8em 0 0.8em 1.2em;
+  margin: 1em 0 1em 1.4em;
+}
+
+.writing-body ul {
+  list-style: disc;
+}
+
+.writing-body ol {
+  list-style: decimal;
 }
 
 .writing-body li + li {
-  margin-top: 0.35em;
+  margin-top: 0.45em;
+}
+
+.writing-body blockquote {
+  margin: 1.4em 0;
+  border-left: 3px solid var(--cardinal);
+  padding: 0.1em 0 0.1em 1em;
+  color: var(--ink-3);
+}
+
+.writing-body hr {
+  margin: 2em 0;
+  border: 0;
+  border-top: 1px solid var(--line-strong);
+}
+
+.writing-body :not(pre) > code {
+  border-radius: 3px;
+  background: var(--paper);
+  padding: 0.15em 0.35em;
+  color: var(--ink);
+  font-size: 0.9em;
+}
+
+.writing-body pre {
+  margin: 1.4em 0;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  padding: 1rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+.writing-body .katex-display {
+  margin: 1.5em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25em 0;
 }

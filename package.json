@@ -14,11 +14,14 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@octokit/rest": "^22.0.1",
+    "katex": "^0.18.5",
     "next": "^16.2.6",
     "next-auth": "^5.0.0-beta.32",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "react-markdown": "^10.1.0"
+    "react-markdown": "^10.1.0",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.0",

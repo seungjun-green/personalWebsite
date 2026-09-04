@@ -162,29 +162,32 @@ export default function WritingSidebar({
   }
 
   return (
-    <aside className="md:sticky md:top-10">
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="text-[0.74rem] font-semibold uppercase tracking-[0.18em] text-[var(--ink-4)]">
-          Writing
+    <aside className="md:sticky md:top-8">
+      <p className="text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-[var(--ink-4)]">
+        Writing
+      </p>
+      {editor && !managing && (
+        <div className="mt-4 grid grid-cols-2 gap-2" aria-label="Writing actions">
+          <button
+            type="button"
+            onClick={beginManaging}
+            className="cursor-pointer border border-[var(--line-strong)] bg-white px-3 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--ink-2)] transition-colors hover:border-[var(--cardinal)] hover:text-[var(--cardinal)]"
+          >
+            Manage
+          </button>
+          <Link
+            href="/writing/new"
+            className="writing-primary-action flex items-center justify-center border border-[var(--cardinal)] bg-[var(--cardinal)] px-3 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.12em] transition-colors hover:bg-[var(--cardinal-dark)]"
+          >
+            New post
+          </Link>
+        </div>
+      )}
+      {managing && (
+        <p className="mt-3 text-[0.82rem] leading-5 text-[var(--ink-3)]">
+          Drag to reorder. Rename groups inline.
         </p>
-        {editor && !managing && (
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={beginManaging}
-              className="cursor-pointer text-[0.74rem] font-medium uppercase tracking-[0.12em] text-[var(--cardinal)]"
-            >
-              Manage
-            </button>
-            <Link
-              href="/writing/new"
-              className="text-[0.74rem] font-medium uppercase tracking-[0.12em]"
-            >
-              New post
-            </Link>
-          </div>
-        )}
-      </div>
+      )}
       {managing ? (
         <div className="mt-5">
           <DndContext
@@ -279,18 +282,19 @@ export default function WritingSidebar({
               {group.posts.length === 0 ? (
                 <p className="mt-1.5 text-[0.85rem] text-[var(--ink-4)]">No posts</p>
               ) : (
-                <ul className="mt-1.5 space-y-1 border-l border-[var(--line)] pl-3">
+                <ul className="mt-2 space-y-1">
                   {group.posts.map((post) => {
                     const active = pathname === post.href;
                     return (
                       <li key={post.href}>
                         <Link
                           href={post.href}
-                          className={
+                          aria-current={active ? "page" : undefined}
+                          className={`writing-post-link block border-l-2 px-3 py-1.5 text-[0.88rem] leading-5 transition-colors ${
                             active
-                              ? "text-[0.9rem] text-[var(--cardinal)] no-underline"
-                              : "text-[0.9rem] text-[var(--ink-3)] no-underline hover:text-[var(--cardinal)]"
-                          }
+                              ? "border-[var(--cardinal)] bg-[var(--cardinal-tint)] font-medium text-[var(--cardinal)]"
+                              : "border-[var(--line)] text-[var(--ink-3)] hover:border-[var(--cardinal)] hover:text-[var(--cardinal)]"
+                          }`}
                         >
                           {post.title}
                         </Link>

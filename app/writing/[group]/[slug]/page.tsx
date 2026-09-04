@@ -29,15 +29,22 @@ export default async function WritingPostPage({
       <h1 className="mt-2 text-[2.1rem] font-semibold leading-tight tracking-[-0.03em] text-[var(--ink)]">
         {post.title}
       </h1>
-      {post.date && (
-        <p className="mt-2 text-[0.88rem] text-[var(--ink-4)]">{post.date}</p>
-      )}
-      {editor && (
-        <p className="mt-4">
-          <Link href={`/writing/${post.groupId}/${post.slug}/edit`}>Edit</Link>
-        </p>
-      )}
-      <div className="mt-8">
+      <div className="mt-4 flex min-h-8 items-center justify-between gap-4 border-b border-[var(--line)] pb-5">
+        {post.date ? (
+          <time className="text-[0.82rem] text-[var(--ink-4)]">{post.date}</time>
+        ) : (
+          <span />
+        )}
+        {editor && (
+          <Link
+            href={`/writing/${post.groupId}/${post.slug}/edit`}
+            className="writing-secondary-action border border-[var(--line-strong)] px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.12em] transition-colors hover:border-[var(--cardinal)]"
+          >
+            Edit post
+          </Link>
+        )}
+      </div>
+      <div className="mt-7">
         <WritingMarkdown>{post.body}</WritingMarkdown>
       </div>
     </article>

@@ -4,7 +4,8 @@
       "id": "paper-summary",
       "name": "Paper Summary",
       "postOrder": [
-        "ddpm"
+        "ddpm",
+        "understanding-policy-gradient-ppo-rloo-and-grpo"
       ]
     },
     {

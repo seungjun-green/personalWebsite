@@ -1,9 +1,16 @@
 import Link from "next/link";
-import { getWritingTree, isWritingEditorEnabled } from "../lib/writing";
+import { getGithubWritingSnapshot } from "../lib/github-writing";
+import { getWritingTree } from "../lib/writing";
+import { getWritingAccess } from "../lib/writing-auth";
 
-export default function WritingIndexPage() {
-  const tree = getWritingTree();
-  const editor = isWritingEditorEnabled();
+export default async function WritingIndexPage() {
+  const access = await getWritingAccess();
+  const snapshot =
+    access.allowed && access.mode === "github"
+      ? await getGithubWritingSnapshot()
+      : null;
+  const tree = snapshot?.tree ?? getWritingTree();
+  const editor = access.allowed;
   const first = tree.groups.find((g) => g.posts.length > 0)?.posts[0];
 
   if (first) {

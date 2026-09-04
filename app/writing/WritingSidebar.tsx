@@ -27,9 +27,13 @@ type SidebarGroup = WritingTree["groups"][number];
 export default function WritingSidebar({
   tree,
   editor,
+  mode = "local",
+  headSha,
 }: {
   tree: WritingTree;
   editor: boolean;
+  mode?: "local" | "github";
+  headSha?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -37,6 +41,7 @@ export default function WritingSidebar({
   const [groups, setGroups] = useState<SidebarGroup[]>(() => cloneGroups(tree.groups));
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
+  const [repositoryHead, setRepositoryHead] = useState(headSha);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -44,6 +49,7 @@ export default function WritingSidebar({
 
   function beginManaging() {
     setGroups(cloneGroups(tree.groups));
+    setRepositoryHead(headSha);
     setStatus("");
     setManaging(true);
   }
@@ -97,6 +103,7 @@ export default function WritingSidebar({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          expectedHead: mode === "github" ? repositoryHead : undefined,
           groups: groups.map((group) => ({
             id: group.id,
             name: group.name,
@@ -106,11 +113,49 @@ export default function WritingSidebar({
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Update failed.");
+      if (data.commit?.sha) setRepositoryHead(data.commit.sha);
       setStatus("Saved.");
       setManaging(false);
       router.refresh();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Update failed.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteWritingPost(groupId: string, slug: string, title: string) {
+    if (!window.confirm(`Delete “${title}” and all of its images?`)) return;
+    setSaving(true);
+    setStatus("");
+    try {
+      const response = await fetch("/api/writing", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          groupId,
+          slug,
+          expectedHead: mode === "github" ? repositoryHead : undefined,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Delete failed.");
+      if (data.commit?.sha) setRepositoryHead(data.commit.sha);
+      setGroups((current) =>
+        current.map((group) =>
+          group.id === groupId
+            ? { ...group, posts: group.posts.filter((post) => post.slug !== slug) }
+            : group,
+        ),
+      );
+      setStatus(
+        mode === "github"
+          ? "Deleted in GitHub. Vercel deployment is in progress."
+          : "Deleted.",
+      );
+      router.refresh();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Delete failed.");
     } finally {
       setSaving(false);
     }
@@ -178,6 +223,13 @@ export default function WritingSidebar({
                                 key={post.slug}
                                 groupId={group.id}
                                 post={post}
+                                onDelete={() =>
+                                  void deleteWritingPost(
+                                    group.id,
+                                    post.slug,
+                                    post.title,
+                                  )
+                                }
                               />
                             ))}
                           </ul>
@@ -282,9 +334,11 @@ function SortableGroup({
 function SortablePost({
   groupId,
   post,
+  onDelete,
 }: {
   groupId: string;
   post: SidebarGroup["posts"][number];
+  onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: `post:${groupId}:${post.slug}` });
@@ -303,6 +357,14 @@ function SortablePost({
       <span className="min-w-0 truncate text-[0.86rem] text-[var(--ink-3)]">
         {post.title}
       </span>
+      <button
+        type="button"
+        onClick={onDelete}
+        className="ml-auto shrink-0 cursor-pointer text-[1rem] leading-none text-[var(--ink-4)] hover:text-[var(--cardinal)]"
+        aria-label={`Delete ${post.title}`}
+      >
+        ×
+      </button>
     </li>
   );
 }

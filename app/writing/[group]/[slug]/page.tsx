@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPost, isWritingEditorEnabled, listPosts } from "../../../lib/writing";
+import { getPost, listPosts } from "../../../lib/writing";
+import { getWritingAccess } from "../../../lib/writing-auth";
 import WritingMarkdown from "../../WritingMarkdown";
 
 export function generateStaticParams() {
@@ -18,7 +19,7 @@ export default async function WritingPostPage({
   const { group, slug } = await params;
   const post = getPost(group, slug);
   if (!post) notFound();
-  const editor = isWritingEditorEnabled();
+  const editor = (await getWritingAccess()).allowed;
 
   return (
     <article>

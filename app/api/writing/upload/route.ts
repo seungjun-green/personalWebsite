@@ -1,12 +1,23 @@
 import { NextResponse } from "next/server";
-import { isWritingEditorEnabled, saveUpload, upsertGroup } from "../../../lib/writing";
+import { saveUpload, upsertGroup } from "../../../lib/writing";
 import { slugify } from "../../../lib/slug";
+import { getWritingAccess, isAllowedMutationOrigin } from "../../../lib/writing-auth";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  if (!isWritingEditorEnabled()) {
-    return NextResponse.json({ error: "Editor is local-only." }, { status: 403 });
+  const access = await getWritingAccess();
+  if (!access.allowed) {
+    return NextResponse.json({ error: "Not authorized." }, { status: 401 });
+  }
+  if (!isAllowedMutationOrigin(request)) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+  }
+  if (access.mode !== "local") {
+    return NextResponse.json(
+      { error: "Images are published with the post in GitHub mode." },
+      { status: 400 },
+    );
   }
 
   const form = await request.formData();

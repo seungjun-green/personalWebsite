@@ -9,9 +9,28 @@ import WritingMarkdown from "./WritingMarkdown";
 type Props = {
   groups: WritingGroup[];
   post?: WritingPost | null;
+  mode?: "local" | "github";
+  headSha?: string;
 };
 
-export default function WritingEditor({ groups, post }: Props) {
+type PendingImage = {
+  file: File;
+  filename: string;
+};
+
+const PUBLISHABLE_IMAGE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+]);
+
+export default function WritingEditor({
+  groups,
+  post,
+  mode = "local",
+  headSha,
+}: Props) {
   const router = useRouter();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [title, setTitle] = useState(post?.title ?? "");
@@ -22,8 +41,12 @@ export default function WritingEditor({ groups, post }: Props) {
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [bodyMode, setBodyMode] = useState<"edit" | "preview">("edit");
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const [repositoryHead, setRepositoryHead] = useState(headSha);
+  const [commitUrl, setCommitUrl] = useState("");
 
   const slug = useMemo(() => slugify(title || post?.slug || "untitled"), [title, post?.slug]);
+  const effectiveSlug = post?.slug ?? slug;
   const groupOptions = useMemo(
     () => Array.from(new Set(groups.map((g) => g.name))),
     [groups],
@@ -50,7 +73,41 @@ export default function WritingEditor({ groups, post }: Props) {
   async function save() {
     setSaving(true);
     setStatus("");
+    setCommitUrl("");
     try {
+      if (mode === "github") {
+        if (!repositoryHead) throw new Error("Repository version is missing. Refresh the page.");
+        const form = new FormData();
+        form.set(
+          "payload",
+          JSON.stringify({
+            expectedHead: repositoryHead,
+            title,
+            groupName,
+            groupId,
+            slug: effectiveSlug,
+            content,
+            date: post?.date,
+            previousGroupId: post?.groupId,
+            previousSlug: post?.slug,
+          }),
+        );
+        for (const image of pendingImages) {
+          form.append("images", image.file, image.filename);
+        }
+        const response = await fetch("/api/writing/admin/post", {
+          method: "POST",
+          body: form,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Publish failed.");
+        setRepositoryHead(data.sha);
+        setPendingImages([]);
+        setCommitUrl(data.url);
+        setStatus("Committed to GitHub. Vercel deployment is in progress.");
+        return;
+      }
+
       const res = await fetch("/api/writing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -78,9 +135,17 @@ export default function WritingEditor({ groups, post }: Props) {
   }
 
   async function addImages(files: FileList | File[]) {
-    const images = Array.from(files).filter((file) => file.type.startsWith("image/"));
+    const images = Array.from(files).filter(
+      (file) =>
+        file.type.startsWith("image/") &&
+        (mode === "local" || PUBLISHABLE_IMAGE_TYPES.has(file.type)),
+    );
     if (images.length === 0) {
-      setStatus("Drop an image file.");
+      setStatus(
+        mode === "github"
+          ? "Drop a PNG, JPEG, GIF, or WebP image."
+          : "Drop an image file.",
+      );
       return;
     }
     if (!title.trim() || !groupName.trim()) {
@@ -101,17 +166,34 @@ export default function WritingEditor({ groups, post }: Props) {
         form.set("title", title);
         form.set("groupName", groupName);
         if (groupId) form.set("groupId", groupId);
-        form.set("slug", slug);
-        const res = await fetch("/api/writing/upload", { method: "POST", body: form });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Upload failed");
-        const snippet = `\n![${file.name}](${data.url})\n`;
+        form.set("slug", effectiveSlug);
+        let imageUrl: string;
+        if (mode === "github") {
+          const extension = fileExtension(file);
+          const base = slugify(file.name.replace(/\.[^.]+$/, "") || "image");
+          const filename = `${Date.now()}-${images.indexOf(file)}-${base}${extension}`;
+          const resolvedGroupId = groupId || slugify(groupName);
+          imageUrl = `/writing/${resolvedGroupId}/${effectiveSlug}/${filename}`;
+          setPendingImages((current) => [...current, { file, filename }]);
+        } else {
+          const res = await fetch("/api/writing/upload", { method: "POST", body: form });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Upload failed");
+          imageUrl = data.url;
+        }
+        const snippet = `\n![${file.name}](${imageUrl})\n`;
         next = next.slice(0, start) + snippet + next.slice(end);
         start += snippet.length;
         end = start;
       }
       setContent(next);
-      setStatus(images.length > 1 ? "Images added." : "Image added.");
+      setStatus(
+        mode === "github"
+          ? `${images.length > 1 ? "Images" : "Image"} staged. Save to publish.`
+          : images.length > 1
+            ? "Images added."
+            : "Image added.",
+      );
       requestAnimationFrame(() => {
         el?.focus();
         el?.setSelectionRange(start, start);
@@ -274,7 +356,27 @@ export default function WritingEditor({ groups, post }: Props) {
           {saving ? "Saving…" : "Save"}
         </button>
         {status && <p className="text-[0.88rem] text-[var(--ink-3)]">{status}</p>}
+        {commitUrl && (
+          <a
+            href={commitUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[0.82rem]"
+          >
+            View commit
+          </a>
+        )}
       </div>
     </form>
   );
+}
+
+function fileExtension(file: File) {
+  const match = file.name.match(/\.(png|jpe?g|gif|webp|svg)$/i);
+  if (match) return match[0].toLowerCase();
+  if (file.type === "image/jpeg") return ".jpg";
+  if (file.type === "image/webp") return ".webp";
+  if (file.type === "image/gif") return ".gif";
+  if (file.type === "image/svg+xml") return ".svg";
+  return ".png";
 }

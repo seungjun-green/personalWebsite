@@ -20,13 +20,32 @@ Open `http://localhost:3000` in your browser.
 
 ## Editing Content
 
-The site is intentionally small:
+Portfolio content lives in `app/page.tsx`. Writing posts are Markdown files under
+`content/writing/posts`, with their groups and ordering in
+`content/writing/groups.json`.
 
-- `app/page.tsx` contains the single-page academic profile content.
-- `app/layout.tsx` contains metadata and font loading via `next/font`.
-- `app/globals.css` contains Tailwind import and the restrained global styling.
+Locally, open `/writing/new` while `npm run dev` is running. The local editor writes
+directly to the repository working tree.
 
-Project links currently use placeholder `#` URLs. Replace them with the final GitHub, LinkedIn, Medium, Google Scholar, and write-up URLs when available.
+### Production writing admin
+
+The deployed `/writing/admin` uses GitHub OAuth for identity and a separate,
+repository-scoped token to commit writing changes. Copy `.env.example` and configure:
+
+- A GitHub OAuth App with callback URL
+  `https://your-domain.example/api/auth/callback/github`.
+- A fine-grained personal access token limited to this repository with
+  `Contents: Read and write`.
+- The variables from `.env.example` in Vercel. Keep all of them server-only.
+
+Generate `AUTH_SECRET` with:
+
+```bash
+npx auth secret
+```
+
+After adding the Vercel variables, redeploy once. Subsequent admin saves commit to
+`main`, and the GitHub/Vercel integration deploys those commits automatically.
 
 ## Production Build
 

@@ -33,6 +33,7 @@ export type WritingOrganizationGroup = {
 const ROOT = process.cwd();
 const GROUPS_PATH = path.join(ROOT, "content/writing/groups.json");
 const POSTS_DIR = path.join(ROOT, "content/writing/posts");
+const PUBLIC_WRITING_DIR = path.join(ROOT, "public/writing");
 
 function ensureDirs() {
   fs.mkdirSync(path.dirname(GROUPS_PATH), { recursive: true });
@@ -57,7 +58,7 @@ export function writeGroups(groups: WritingGroup[]) {
   fs.writeFileSync(GROUPS_PATH, JSON.stringify({ groups }, null, 2) + "\n");
 }
 
-function parseFrontMatter(raw: string): { data: Record<string, string>; body: string } {
+export function parseFrontMatter(raw: string): { data: Record<string, string>; body: string } {
   if (!raw.startsWith("---\n")) return { data: {}, body: raw };
   const end = raw.indexOf("\n---\n", 4);
   if (end === -1) return { data: {}, body: raw };
@@ -72,7 +73,7 @@ function parseFrontMatter(raw: string): { data: Record<string, string>; body: st
   return { data, body };
 }
 
-function serializePost(post: { title: string; groupId: string; date: string; body: string }) {
+export function serializePost(post: { title: string; groupId: string; date: string; body: string }) {
   return `---\ntitle: ${post.title}\ngroup: ${post.groupId}\ndate: ${post.date}\n---\n${post.body.replace(/^\n/, "")}`;
 }
 
@@ -107,6 +108,13 @@ export function listPosts(): WritingPostMeta[] {
 export function getWritingTree(): WritingTree {
   const groups = readGroups();
   const posts = listPosts();
+  return buildWritingTree(groups, posts);
+}
+
+export function buildWritingTree(
+  groups: WritingGroup[],
+  posts: WritingPostMeta[],
+): WritingTree {
   return {
     groups: groups.map((group) => {
       const groupPosts = posts.filter((post) => post.groupId === group.id);
@@ -210,6 +218,7 @@ export function savePost(input: {
   const date = input.date || new Date().toISOString().slice(0, 10);
   const dir = path.join(POSTS_DIR, group.id);
   fs.mkdirSync(dir, { recursive: true });
+  let body = input.body;
 
   if (
     input.previousGroupId &&
@@ -218,6 +227,25 @@ export function savePost(input: {
   ) {
     const prev = path.join(POSTS_DIR, input.previousGroupId, `${input.previousSlug}.md`);
     if (fs.existsSync(prev)) fs.unlinkSync(prev);
+    const oldImageDir = path.join(
+      PUBLIC_WRITING_DIR,
+      input.previousGroupId,
+      input.previousSlug,
+    );
+    const newImageDir = path.join(PUBLIC_WRITING_DIR, group.id, input.slug);
+    if (fs.existsSync(oldImageDir)) {
+      fs.mkdirSync(path.dirname(newImageDir), { recursive: true });
+      if (fs.existsSync(newImageDir)) {
+        fs.cpSync(oldImageDir, newImageDir, { recursive: true });
+        fs.rmSync(oldImageDir, { recursive: true, force: true });
+      } else {
+        fs.renameSync(oldImageDir, newImageDir);
+      }
+    }
+    body = body.replaceAll(
+      `/writing/${input.previousGroupId}/${input.previousSlug}/`,
+      `/writing/${group.id}/${input.slug}/`,
+    );
   }
 
   fs.writeFileSync(
@@ -226,7 +254,7 @@ export function savePost(input: {
       title: input.title,
       groupId: group.id,
       date,
-      body: input.body.endsWith("\n") ? input.body : `${input.body}\n`,
+      body: body.endsWith("\n") ? body : `${body}\n`,
     }),
   );
 
@@ -287,9 +315,36 @@ export function saveUpload(params: {
   bytes: Buffer;
 }) {
   const safeName = params.filename.replace(/[^a-zA-Z0-9._-]/g, "-");
-  const dir = path.join(ROOT, "public/writing", params.groupId, params.slug);
+  const dir = path.join(PUBLIC_WRITING_DIR, params.groupId, params.slug);
   fs.mkdirSync(dir, { recursive: true });
   const dest = path.join(dir, safeName);
   fs.writeFileSync(dest, params.bytes);
   return `/writing/${params.groupId}/${params.slug}/${safeName}`;
+}
+
+export function deletePost(groupId: string, slug: string) {
+  const postPath = path.join(POSTS_DIR, groupId, `${slug}.md`);
+  if (!fs.existsSync(postPath)) throw new Error("Post not found.");
+  fs.unlinkSync(postPath);
+  fs.rmSync(path.join(PUBLIC_WRITING_DIR, groupId, slug), {
+    recursive: true,
+    force: true,
+  });
+  const groups = removePostFromGroupOrder(readGroups(), groupId, slug);
+  writeGroups(groups);
+  return getWritingTree();
+}
+
+export function removePostFromGroupOrder(
+  groups: WritingGroup[],
+  groupId: string,
+  slug: string,
+) {
+  return groups.map((group) => ({
+    ...group,
+    postOrder:
+      group.id === groupId
+        ? (group.postOrder ?? []).filter((item) => item !== slug)
+        : group.postOrder,
+  }));
 }

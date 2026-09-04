@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getGithubWritingSnapshot } from "../../../lib/github-writing";
 import { getPost, listPosts } from "../../../lib/writing";
 import { getWritingAccess } from "../../../lib/writing-auth";
 import WritingMarkdown from "../../WritingMarkdown";
@@ -17,9 +18,17 @@ export default async function WritingPostPage({
   params: Promise<{ group: string; slug: string }>;
 }) {
   const { group, slug } = await params;
-  const post = getPost(group, slug);
+  const access = await getWritingAccess();
+  let post = getPost(group, slug);
+  if (!post && access.allowed && access.mode === "github") {
+    const snapshot = await getGithubWritingSnapshot();
+    post =
+      snapshot.posts.find(
+        (candidate) => candidate.groupId === group && candidate.slug === slug,
+      ) ?? null;
+  }
   if (!post) notFound();
-  const editor = (await getWritingAccess()).allowed;
+  const editor = access.allowed;
 
   return (
     <article>

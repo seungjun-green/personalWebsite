@@ -10,6 +10,7 @@ import {
 } from "../../../../lib/writing-auth";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const IMAGE_TYPES = new Set([

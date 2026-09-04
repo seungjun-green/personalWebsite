@@ -69,3 +69,36 @@ a:hover {
   height: 6px;
   width: 100%;
 }
+
+.writing-body {
+  color: var(--ink-2);
+  font-size: 1.02rem;
+  line-height: 1.75;
+}
+
+.writing-body p + p {
+  margin-top: 1em;
+}
+
+.writing-body h2,
+.writing-body h3 {
+  color: var(--ink);
+  margin-top: 1.6em;
+  margin-bottom: 0.5em;
+}
+
+.writing-body img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.25em 0;
+}
+
+.writing-body ul,
+.writing-body ol {
+  margin: 0.8em 0 0.8em 1.2em;
+}
+
+.writing-body li + li {
+  margin-top: 0.35em;
+}

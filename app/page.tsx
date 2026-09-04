@@ -281,30 +281,6 @@ function SideCard({ project }: { project: Project }) {
 export default function Home() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Cardinal ribbon */}
-      <div className="ribbon" aria-hidden="true" />
-
-      {/* Top utility bar */}
-      <div className="border-b border-[var(--line)]">
-        <div className="mx-auto flex max-w-[880px] items-center justify-between px-8 py-3 text-[0.74rem] uppercase tracking-[0.18em] text-[var(--ink-3)] max-sm:px-5">
-          <span className="font-semibold text-[var(--ink)]">Seungjun Lee</span>
-          <nav aria-label="Section navigation" className="flex gap-5 max-sm:hidden">
-            <a href="#research" className="text-[var(--ink-3)] hover:text-[var(--cardinal)]">
-              Research
-            </a>
-            <a href="#awards" className="text-[var(--ink-3)] hover:text-[var(--cardinal)]">
-              Awards
-            </a>
-            <a href="#projects" className="text-[var(--ink-3)] hover:text-[var(--cardinal)]">
-              Projects
-            </a>
-            <a href="#contact" className="text-[var(--ink-3)] hover:text-[var(--cardinal)]">
-              Contact
-            </a>
-          </nav>
-        </div>
-      </div>
-
       {/* Hero */}
       <header className="border-b border-[var(--line)] bg-white">
         <div className="mx-auto max-w-[880px] px-8 pt-16 pb-14 max-sm:px-5 max-sm:pt-10 max-sm:pb-10">
@@ -387,6 +363,24 @@ export default function Home() {
             </dt>
             <dd className="text-[var(--ink-2)]">Seoul, South Korea</dd>
           </dl>
+
+          <nav
+            aria-label="Section navigation"
+            className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-[0.74rem] uppercase tracking-[0.18em]"
+          >
+            <a href="#research" className="text-[var(--ink-3)] no-underline hover:text-[var(--cardinal)]">
+              Research
+            </a>
+            <a href="#awards" className="text-[var(--ink-3)] no-underline hover:text-[var(--cardinal)]">
+              Awards
+            </a>
+            <a href="#projects" className="text-[var(--ink-3)] no-underline hover:text-[var(--cardinal)]">
+              Projects
+            </a>
+            <a href="#contact" className="text-[var(--ink-3)] no-underline hover:text-[var(--cardinal)]">
+              Contact
+            </a>
+          </nav>
         </div>
       </header>
 

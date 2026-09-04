@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import SiteHeader from "./components/SiteHeader";
 
 export const metadata: Metadata = {
   title: "Seungjun Lee — ML Researcher",
@@ -18,7 +19,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <div className="ribbon" aria-hidden="true" />
+        <SiteHeader />
+        {children}
+      </body>
     </html>
   );
 }

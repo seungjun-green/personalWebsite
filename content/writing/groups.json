@@ -1,0 +1,18 @@
+{
+  "groups": [
+    {
+      "id": "paper-summary",
+      "name": "Paper Summary",
+      "postOrder": [
+        "ddpm"
+      ]
+    },
+    {
+      "id": "kaggle-playground-series",
+      "name": "Kaggle Playground Series",
+      "postOrder": [
+        "kaggle-playground-series-general-strategy-playbook"
+      ]
+    }
+  ]
+}

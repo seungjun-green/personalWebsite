@@ -233,6 +233,15 @@ a:hover {
 .writing-body .katex-display {
   margin: 1.5em 0;
   overflow-x: auto;
-  overflow-y: hidden;
-  padding: 0.25em 0;
+  padding: 0.4em 0;
+}
+
+.writing-body .katex .vlist:has(.stretchy.fbox) .boxpad {
+  border: 1px solid var(--ink-2);
+  background: var(--paper);
+  padding: 0.22em 0.5em 0.28em;
+}
+
+.writing-body .katex .stretchy.fbox {
+  display: none;
 }

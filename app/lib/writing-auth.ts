@@ -17,7 +17,6 @@ export function isAllowedMutationOrigin(request: Request) {
   return isAllowedWritingOrigin(
     request.headers.get("origin"),
     request.url,
-    process.env.APP_ALLOWED_ORIGINS ?? "",
     process.env.NODE_ENV === "development",
   );
 }

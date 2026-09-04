@@ -46,10 +46,9 @@ export class GithubConflictError extends Error {
 }
 
 function config(): RepositoryConfig {
-  const owner = process.env.GITHUB_REPOSITORY_OWNER;
-  const repo = process.env.GITHUB_REPOSITORY_NAME;
-  const branch = process.env.GITHUB_CONTENT_BRANCH || "main";
-  if (!owner || !repo) throw new Error("GitHub repository is not configured.");
+  const owner = "seungjun-green";
+  const repo = "personalWebsite";
+  const branch = "main";
   return { owner, repo, branch };
 }
 

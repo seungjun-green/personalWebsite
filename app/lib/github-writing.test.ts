@@ -34,9 +34,6 @@ describe("atomic GitHub commits", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.GITHUB_CONTENT_PAT = "test-token";
-    process.env.GITHUB_REPOSITORY_OWNER = "owner";
-    process.env.GITHUB_REPOSITORY_NAME = "repo";
-    process.env.GITHUB_CONTENT_BRANCH = "main";
   });
 
   it("creates one tree and advances main once", async () => {

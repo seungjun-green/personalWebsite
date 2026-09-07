@@ -1,8 +1,10 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { tokenizeMarkdownImages } from "../lib/markdown-images";
 import type { WritingGroup, WritingPost } from "../lib/writing";
 import { slugify } from "../lib/slug";
 import DeletePostButton from "./DeletePostButton";
@@ -19,6 +21,8 @@ type Props = {
 type PendingImage = {
   file: File;
   filename: string;
+  url: string;
+  previewUrl: string;
 };
 
 const PUBLISHABLE_IMAGE_TYPES = new Set([
@@ -37,6 +41,9 @@ export default function WritingEditor({
   const router = useRouter();
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const bodyRootRef = useRef<HTMLDivElement>(null);
+  const pendingCaretRef = useRef<number | null>(null);
+  const pendingImagesRef = useRef<PendingImage[]>([]);
   const [title, setTitle] = useState(post?.title ?? "");
   const [groupName, setGroupName] = useState(post?.groupName ?? "");
   const [content, setContent] = useState(post?.body ?? "");
@@ -49,9 +56,11 @@ export default function WritingEditor({
   const [repositoryHead, setRepositoryHead] = useState(headSha);
   const [commitUrl, setCommitUrl] = useState("");
   const [publishedPost, setPublishedPost] = useState<WritingPost | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const slug = useMemo(() => slugify(title || post?.slug || "untitled"), [title, post?.slug]);
   const effectiveSlug = post?.slug ?? slug;
+  const bodyTokens = useMemo(() => tokenizeMarkdownImages(content), [content]);
   const groupOptions = useMemo(
     () => Array.from(new Set(groups.map((g) => g.name))),
     [groups],
@@ -80,8 +89,36 @@ export default function WritingEditor({
   }, [title]);
 
   useEffect(() => {
-    if (bodyMode === "edit") autosize(textareaRef.current, 420);
-  }, [content, bodyMode]);
+    pendingImagesRef.current = pendingImages;
+  }, [pendingImages]);
+
+  useEffect(
+    () => () => {
+      for (const image of pendingImagesRef.current) {
+        URL.revokeObjectURL(image.previewUrl);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const caret = pendingCaretRef.current;
+    if (bodyMode !== "edit" || caret === null) return;
+    const segments = bodyRootRef.current?.querySelectorAll<HTMLTextAreaElement>(
+      "textarea[data-content-start]",
+    );
+    const target = Array.from(segments ?? []).find((segment) => {
+      const start = Number(segment.dataset.contentStart);
+      const end = Number(segment.dataset.contentEnd);
+      return caret >= start && caret <= end;
+    });
+    if (!target) return;
+    const localCaret = caret - Number(target.dataset.contentStart);
+    target.focus();
+    target.setSelectionRange(localCaret, localCaret);
+    textareaRef.current = target;
+    pendingCaretRef.current = null;
+  }, [bodyMode, bodyTokens]);
 
   async function save() {
     setSaving(true);
@@ -115,6 +152,7 @@ export default function WritingEditor({
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Publish failed.");
         setRepositoryHead(data.sha);
+        for (const image of pendingImages) URL.revokeObjectURL(image.previewUrl);
         setPendingImages([]);
         setCommitUrl(data.url);
         setStatus("Committed to GitHub. Vercel deployment is in progress.");
@@ -169,8 +207,9 @@ export default function WritingEditor({
     }
 
     const el = textareaRef.current;
-    let start = el?.selectionStart ?? content.length;
-    let end = el?.selectionEnd ?? start;
+    const segmentStart = Number(el?.dataset.contentStart ?? content.length);
+    let start = segmentStart + (el?.selectionStart ?? 0);
+    let end = segmentStart + (el?.selectionEnd ?? 0);
     let next = content;
 
     setStatus(images.length > 1 ? "Uploading images…" : "Uploading image…");
@@ -189,18 +228,28 @@ export default function WritingEditor({
           const filename = `${Date.now()}-${images.indexOf(file)}-${base}${extension}`;
           const resolvedGroupId = groupId || slugify(groupName);
           imageUrl = `/writing/${resolvedGroupId}/${effectiveSlug}/${filename}`;
-          setPendingImages((current) => [...current, { file, filename }]);
+          setPendingImages((current) => [
+            ...current,
+            {
+              file,
+              filename,
+              url: imageUrl,
+              previewUrl: URL.createObjectURL(file),
+            },
+          ]);
         } else {
           const res = await fetch("/api/writing/upload", { method: "POST", body: form });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || "Upload failed");
           imageUrl = data.url;
         }
-        const snippet = `\n![${file.name}](${imageUrl})\n`;
+        const alt = file.name.replace(/[[\]]/g, "");
+        const snippet = `\n![${alt}](${imageUrl})\n`;
         next = next.slice(0, start) + snippet + next.slice(end);
         start += snippet.length;
         end = start;
       }
+      pendingCaretRef.current = start;
       setContent(next);
       setStatus(
         mode === "github"
@@ -209,13 +258,22 @@ export default function WritingEditor({
             ? "Images added."
             : "Image added.",
       );
-      requestAnimationFrame(() => {
-        el?.focus();
-        el?.setSelectionRange(start, start);
-      });
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Upload failed");
     }
+  }
+
+  function removeImage(start: number, end: number, url: string) {
+    setContent((current) => current.slice(0, start) + current.slice(end));
+    setPendingImages((current) =>
+      current.filter((image) => {
+        if (image.url !== url) return true;
+        URL.revokeObjectURL(image.previewUrl);
+        return false;
+      }),
+    );
+    setSelectedImage(null);
+    pendingCaretRef.current = start;
   }
 
   function hasFiles(event: React.DragEvent) {
@@ -404,17 +462,81 @@ export default function WritingEditor({
         </time>
       ) : null}
 
-      <div className="relative mt-8">
+      <div ref={bodyRootRef} className="relative mt-8 min-h-[62vh]">
         {bodyMode === "edit" ? (
-          <textarea
-            ref={textareaRef}
-            aria-label="Body"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onPaste={onPaste}
-            placeholder="Start writing…"
-            className="writing-editor-body"
-          />
+          <div>
+            {bodyTokens.map((token, index) =>
+              token.type === "text" ? (
+                <textarea
+                  key={`text-${index}`}
+                  ref={(element) => {
+                    if (element) {
+                      autosize(element, content.length === 0 ? 420 : 36);
+                      if (!textareaRef.current) textareaRef.current = element;
+                    }
+                  }}
+                  rows={1}
+                  data-content-start={token.start}
+                  data-content-end={token.end}
+                  aria-label="Body"
+                  value={token.value}
+                  onFocus={(event) => {
+                    textareaRef.current = event.currentTarget;
+                    setSelectedImage(null);
+                  }}
+                  onChange={(event) => {
+                    const nextValue = event.target.value;
+                    setContent(
+                      (current) =>
+                        current.slice(0, token.start) +
+                        nextValue +
+                        current.slice(token.end),
+                    );
+                    requestAnimationFrame(() => autosize(event.target, 36));
+                  }}
+                  onPaste={onPaste}
+                  placeholder={content.length === 0 ? "Start writing…" : undefined}
+                  className="writing-editor-segment"
+                />
+              ) : (
+                <button
+                  key={`image-${index}`}
+                  type="button"
+                  onClick={(event) => {
+                    event.currentTarget.focus();
+                    setSelectedImage(`${token.start}:${token.url}`);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Backspace" && event.key !== "Delete") return;
+                    event.preventDefault();
+                    removeImage(token.start, token.end, token.url);
+                  }}
+                  className={`my-5 block w-full cursor-pointer border-2 bg-transparent p-1 text-left transition-colors ${
+                    selectedImage === `${token.start}:${token.url}`
+                      ? "border-[var(--cardinal)]"
+                      : "border-transparent hover:border-[var(--line-strong)]"
+                  }`}
+                  aria-label={`${token.alt || "Image"}. Press Backspace or Delete to remove.`}
+                >
+                  <img
+                    src={
+                      pendingImages.find((image) => image.url === token.url)
+                        ?.previewUrl ?? token.url
+                    }
+                    alt={token.alt}
+                    className="mx-auto block max-h-[70vh] max-w-full"
+                  />
+                  {selectedImage === `${token.start}:${token.url}` || token.alt ? (
+                    <span className="mt-2 block text-center font-sans text-[0.76rem] text-[var(--ink-4)]">
+                      {selectedImage === `${token.start}:${token.url}`
+                        ? "Press Backspace or Delete to remove"
+                        : token.alt}
+                    </span>
+                  ) : null}
+                </button>
+              ),
+            )}
+          </div>
         ) : content.trim() ? (
           <WritingMarkdown>{content}</WritingMarkdown>
         ) : (

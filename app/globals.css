@@ -159,7 +159,7 @@ a.writing-post-link:hover {
 }
 
 .writing-editor-title::placeholder,
-.writing-editor-body::placeholder {
+.writing-editor-segment::placeholder {
   color: var(--ink-4);
 }
 
@@ -173,10 +173,10 @@ a.writing-post-link:hover {
   color: var(--ink-2);
 }
 
-.writing-editor-body {
+.writing-editor-segment {
   display: block;
   width: 100%;
-  min-height: 62vh;
+  min-height: 2.25rem;
   resize: none;
   overflow: hidden;
   border: 0;

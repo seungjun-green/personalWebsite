@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { markdownImageUrls } from "./markdown-images";
 
 export type WritingGroup = {
   id: string;
@@ -248,6 +249,7 @@ export function savePost(input: {
     );
   }
 
+  prunePostImages(group.id, input.slug, body);
   fs.writeFileSync(
     path.join(dir, `${input.slug}.md`),
     serializePost({
@@ -273,6 +275,22 @@ export function savePost(input: {
     date,
     href: `/writing/${group.id}/${input.slug}`,
   };
+}
+
+function prunePostImages(groupId: string, slug: string, body: string) {
+  const dir = path.join(PUBLIC_WRITING_DIR, groupId, slug);
+  if (!fs.existsSync(dir)) return;
+  const prefix = `/writing/${groupId}/${slug}/`;
+  const referenced = new Set(
+    markdownImageUrls(body)
+      .filter((url) => url.startsWith(prefix))
+      .map((url) => url.slice(prefix.length)),
+  );
+  for (const filename of fs.readdirSync(dir)) {
+    if (!referenced.has(filename)) {
+      fs.rmSync(path.join(dir, filename), { recursive: true, force: true });
+    }
+  }
 }
 
 function updatePostOrderAfterSave(input: {

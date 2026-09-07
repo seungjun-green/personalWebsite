@@ -12,6 +12,7 @@ import {
   type WritingPostMeta,
   type WritingTree,
 } from "./writing";
+import { markdownImageUrls } from "./markdown-images";
 import { slugify } from "./slug";
 
 type RepositoryConfig = {
@@ -367,17 +368,36 @@ export async function saveGithubPost(
       `/${oldPrefix.replace(/^public\//, "")}`,
       `/${newPrefix.replace(/^public\//, "")}`,
     );
+    const referencedImages = new Set(
+      markdownImageUrls(content)
+        .filter((url) => url.startsWith("/writing/"))
+        .map((url) => `public${url}`),
+    );
     for (const file of snapshot.files.filter((item) => item.path.startsWith(oldPrefix))) {
-      changes.push({
-        path: newPrefix + file.path.slice(oldPrefix.length),
-        existingSha: file.sha,
-      });
+      const destination = newPrefix + file.path.slice(oldPrefix.length);
+      if (referencedImages.has(destination)) {
+        changes.push({
+          path: destination,
+          existingSha: file.sha,
+        });
+      }
       changes.push({ path: file.path, delete: true });
     }
     changes.push({
       path: `content/writing/posts/${input.previousGroupId}/${input.previousSlug}.md`,
       delete: true,
     });
+  }
+
+  const referencedImages = new Set(
+    markdownImageUrls(content)
+      .filter((url) => url.startsWith("/writing/"))
+      .map((url) => `public${url}`),
+  );
+  for (const file of snapshot.files.filter((item) => item.path.startsWith(newPrefix))) {
+    if (!referencedImages.has(file.path)) {
+      changes.push({ path: file.path, delete: true });
+    }
   }
 
   const date = input.date || new Date().toISOString().slice(0, 10);

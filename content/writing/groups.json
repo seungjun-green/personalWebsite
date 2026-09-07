@@ -4,7 +4,8 @@
       "id": "paper-summary",
       "name": "NLP Bascis",
       "postOrder": [
-        "understanding-policy-gradient-ppo-rloo-and-grpo"
+        "understanding-policy-gradient-ppo-rloo-and-grpo",
+        "4-types-of-normalization"
       ]
     },
     {

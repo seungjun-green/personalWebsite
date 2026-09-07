@@ -1,5 +1,5 @@
 ---
-title: Understanding Policy Gradient, PPO, RLOO, and GRPO
+title: RL Based Post-Training Methods(Policy Gradient, PPO, RLOO, and GRPO)
 group: paper-summary
 date: 2026-09-04
 ---

@@ -292,8 +292,8 @@ export default function WritingSidebar({
                           aria-current={active ? "page" : undefined}
                           className={`writing-post-link block border-l-2 px-3 py-1.5 text-[0.88rem] leading-5 transition-colors ${
                             active
-                              ? "border-[var(--cardinal)] bg-[var(--cardinal-tint)] font-medium text-[var(--cardinal)]"
-                              : "border-[var(--line)] text-[var(--ink-3)] hover:border-[var(--cardinal)] hover:text-[var(--cardinal)]"
+                              ? "border-[var(--cardinal)] bg-[var(--cardinal-tint)] font-medium text-[var(--ink)]"
+                              : "border-[var(--line)] text-[var(--ink)] hover:border-[var(--cardinal)]"
                           }`}
                         >
                           {post.title}

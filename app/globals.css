@@ -119,7 +119,9 @@ a:hover {
   color: var(--cardinal);
 }
 
-.writing-post-link {
+a.writing-post-link,
+a.writing-post-link:hover {
+  color: var(--ink);
   text-decoration: none;
 }
 

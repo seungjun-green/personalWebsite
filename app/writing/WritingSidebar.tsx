@@ -364,10 +364,9 @@ function SortablePost({
       <button
         type="button"
         onClick={onDelete}
-        className="ml-auto shrink-0 cursor-pointer text-[1rem] leading-none text-[var(--ink-4)] hover:text-[var(--cardinal)]"
-        aria-label={`Delete ${post.title}`}
+        className="ml-auto shrink-0 cursor-pointer text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-[var(--ink-4)] hover:text-[var(--cardinal)]"
       >
-        ×
+        Delete
       </button>
     </li>
   );

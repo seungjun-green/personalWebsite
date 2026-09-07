@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { WritingGroup, WritingPost } from "../lib/writing";
 import { slugify } from "../lib/slug";
+import DeletePostButton from "./DeletePostButton";
 import WritingMarkdown from "./WritingMarkdown";
 
 type Props = {
@@ -355,6 +356,15 @@ export default function WritingEditor({
         >
           {saving ? "Saving…" : "Save"}
         </button>
+        {post ? (
+          <DeletePostButton
+            groupId={post.groupId}
+            slug={post.slug}
+            title={title.trim() || post.title}
+            mode={mode}
+            headSha={repositoryHead}
+          />
+        ) : null}
         {status && <p className="text-[0.88rem] text-[var(--ink-3)]">{status}</p>}
         {commitUrl && (
           <a

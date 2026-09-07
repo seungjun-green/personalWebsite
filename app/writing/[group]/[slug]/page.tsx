@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getGithubWritingSnapshot } from "../../../lib/github-writing";
 import { getPost, listPosts } from "../../../lib/writing";
 import { getWritingAccess } from "../../../lib/writing-auth";
+import DeletePostButton from "../../DeletePostButton";
 import WritingMarkdown from "../../WritingMarkdown";
 
 export function generateStaticParams() {
@@ -19,9 +20,12 @@ export default async function WritingPostPage({
 }) {
   const { group, slug } = await params;
   const access = await getWritingAccess();
+  const snapshot =
+    access.allowed && access.mode === "github"
+      ? await getGithubWritingSnapshot()
+      : null;
   let post = getPost(group, slug);
-  if (!post && access.allowed && access.mode === "github") {
-    const snapshot = await getGithubWritingSnapshot();
+  if (!post && snapshot) {
     post =
       snapshot.posts.find(
         (candidate) => candidate.groupId === group && candidate.slug === slug,
@@ -45,12 +49,21 @@ export default async function WritingPostPage({
           <span />
         )}
         {editor && (
-          <Link
-            href={`/writing/${post.groupId}/${post.slug}/edit`}
-            className="writing-secondary-action border border-[var(--line-strong)] px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.12em] transition-colors hover:border-[var(--cardinal)]"
-          >
-            Edit post
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/writing/${post.groupId}/${post.slug}/edit`}
+              className="writing-secondary-action border border-[var(--line-strong)] px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.12em] transition-colors hover:border-[var(--cardinal)]"
+            >
+              Edit post
+            </Link>
+            <DeletePostButton
+              groupId={post.groupId}
+              slug={post.slug}
+              title={post.title}
+              mode={access.mode}
+              headSha={snapshot?.headSha}
+            />
+          </div>
         )}
       </div>
       <div className="mt-7">

@@ -33,6 +33,7 @@ export default function WritingEditor({
   headSha,
 }: Props) {
   const router = useRouter();
+  const titleRef = useRef<HTMLTextAreaElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [title, setTitle] = useState(post?.title ?? "");
   const [groupName, setGroupName] = useState(post?.groupName ?? "");
@@ -70,6 +71,14 @@ export default function WritingEditor({
       window.removeEventListener("drop", preventFileNavigation);
     };
   }, []);
+
+  useEffect(() => {
+    autosize(titleRef.current, 52);
+  }, [title]);
+
+  useEffect(() => {
+    if (bodyMode === "edit") autosize(textareaRef.current, 420);
+  }, [content, bodyMode]);
 
   async function save() {
     setSaving(true);
@@ -251,7 +260,7 @@ export default function WritingEditor({
 
   return (
     <form
-      className="space-y-5"
+      className="writing-canvas relative"
       onSubmit={(event) => {
         event.preventDefault();
         void save();
@@ -261,124 +270,126 @@ export default function WritingEditor({
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
-      <label className="block">
-        <span className="text-[0.74rem] font-semibold uppercase tracking-[0.16em] text-[var(--ink-4)]">
-          Group name
-        </span>
-        <input
-          list="writing-groups"
-          value={groupName}
-          onChange={(e) => setGroupName(e.target.value)}
-          placeholder="Paper Summary"
-          className="mt-1.5 w-full border-b border-[var(--line-strong)] bg-transparent py-2 text-[1rem] outline-none focus:border-[var(--cardinal)]"
-        />
-        <datalist id="writing-groups">
-          {groupOptions.map((name) => (
-            <option key={name} value={name} />
-          ))}
-        </datalist>
-      </label>
-
-      <label className="block">
-        <span className="text-[0.74rem] font-semibold uppercase tracking-[0.16em] text-[var(--ink-4)]">
-          Post title
-        </span>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="mt-1.5 w-full border-b border-[var(--line-strong)] bg-transparent py-2 text-[1.2rem] font-semibold outline-none focus:border-[var(--cardinal)]"
-        />
-      </label>
-
-      <div>
-        <div className="flex items-end justify-between gap-4">
-          <span className="text-[0.74rem] font-semibold uppercase tracking-[0.16em] text-[var(--ink-4)]">
-            Body
-          </span>
-          <div className="flex border border-[var(--line)]" role="group" aria-label="Body view">
-            {(["edit", "preview"] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setBodyMode(mode)}
-                className={`cursor-pointer px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.12em] ${
-                  bodyMode === mode
-                    ? "bg-[var(--cardinal)] text-white"
-                    : "bg-white text-[var(--ink-3)]"
-                }`}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
-        </div>
-        {bodyMode === "edit" ? (
-          <div
-            className={`relative mt-2 ${
-              dragging ? "ring-1 ring-[var(--cardinal)]" : ""
-            }`}
-          >
-            <textarea
-              ref={textareaRef}
-              aria-label="Body"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              onPaste={onPaste}
-              placeholder="Write in markdown. Drag an image in, or paste one."
-              className={`min-h-[420px] w-full resize-y border px-4 py-3 text-[0.98rem] leading-7 outline-none ${
-                dragging
-                  ? "border-[var(--cardinal)] bg-[var(--cardinal-tint)]"
-                  : "border-[var(--line)] bg-white"
+      <div className="sticky top-0 z-10 mb-8 flex items-center justify-between gap-4 bg-white/90 py-2 font-sans backdrop-blur-sm">
+        <div className="flex items-center gap-4" role="group" aria-label="Editor view">
+          {(["edit", "preview"] as const).map((view) => (
+            <button
+              key={view}
+              type="button"
+              onClick={() => setBodyMode(view)}
+              className={`cursor-pointer text-[0.78rem] tracking-[0.04em] ${
+                bodyMode === view
+                  ? "text-[var(--ink)] underline decoration-[var(--cardinal)] decoration-1 underline-offset-8"
+                  : "text-[var(--ink-4)] hover:text-[var(--ink-2)]"
               }`}
+            >
+              {view === "edit" ? "Write" : "Preview"}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {status && <p className="text-[0.82rem] text-[var(--ink-3)]">{status}</p>}
+          {commitUrl && (
+            <a
+              href={commitUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[0.82rem]"
+            >
+              View commit
+            </a>
+          )}
+          {post ? (
+            <DeletePostButton
+              groupId={post.groupId}
+              slug={post.slug}
+              title={title.trim() || post.title}
+              mode={mode}
+              headSha={repositoryHead}
+              className="cursor-pointer text-[0.78rem] text-[var(--ink-4)] hover:text-[var(--cardinal)] disabled:opacity-60"
             />
-            {dragging && (
-              <div className="absolute inset-0 flex items-center justify-center bg-[var(--cardinal-tint)] text-[0.9rem] font-semibold uppercase tracking-[0.14em] text-[var(--cardinal)]">
-                Drop image to insert
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="mt-2 min-h-[420px] border border-[var(--line)] bg-white px-5 py-4">
-            {content.trim() ? (
-              <WritingMarkdown>{content}</WritingMarkdown>
-            ) : (
-              <p className="text-[0.92rem] text-[var(--ink-4)]">Nothing to preview yet.</p>
-            )}
-          </div>
-        )}
+          ) : null}
+          <button
+            type="submit"
+            disabled={saving}
+            className="cursor-pointer rounded-full bg-[var(--cardinal)] px-4 py-1.5 text-[0.78rem] font-medium text-white disabled:opacity-60"
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4">
-        <button
-          type="submit"
-          disabled={saving}
-          className="cursor-pointer border border-[var(--cardinal)] bg-[var(--cardinal)] px-4 py-2 text-[0.8rem] font-semibold uppercase tracking-[0.14em] text-white disabled:opacity-60"
-        >
-          {saving ? "Saving…" : "Save"}
-        </button>
-        {post ? (
-          <DeletePostButton
-            groupId={post.groupId}
-            slug={post.slug}
-            title={title.trim() || post.title}
-            mode={mode}
-            headSha={repositoryHead}
+      <input
+        list="writing-groups"
+        value={groupName}
+        onChange={(e) => setGroupName(e.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") event.preventDefault();
+        }}
+        placeholder="Group"
+        aria-label="Group name"
+        className="w-full border-0 bg-transparent font-sans text-[0.74rem] font-semibold uppercase tracking-[0.16em] text-[var(--cardinal)] outline-none placeholder:text-[var(--ink-4)]"
+      />
+      <datalist id="writing-groups">
+        {groupOptions.map((name) => (
+          <option key={name} value={name} />
+        ))}
+      </datalist>
+
+      <textarea
+        ref={titleRef}
+        rows={1}
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            textareaRef.current?.focus();
+          }
+        }}
+        placeholder="Title"
+        aria-label="Title"
+        className="writing-editor-title mt-3"
+      />
+
+      {post?.date ? (
+        <time className="mt-4 block font-sans text-[0.82rem] text-[var(--ink-4)]">
+          {post.date}
+        </time>
+      ) : null}
+
+      <div className="relative mt-8">
+        {bodyMode === "edit" ? (
+          <textarea
+            ref={textareaRef}
+            aria-label="Body"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onPaste={onPaste}
+            placeholder="Start writing…"
+            className="writing-editor-body"
           />
-        ) : null}
-        {status && <p className="text-[0.88rem] text-[var(--ink-3)]">{status}</p>}
-        {commitUrl && (
-          <a
-            href={commitUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-[0.82rem]"
-          >
-            View commit
-          </a>
+        ) : content.trim() ? (
+          <WritingMarkdown>{content}</WritingMarkdown>
+        ) : (
+          <p className="text-[1.15rem] leading-8 text-[var(--ink-4)]">
+            Nothing to preview yet.
+          </p>
+        )}
+        {dragging && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/70 text-[0.92rem] text-[var(--cardinal)]">
+            Drop image to insert
+          </div>
         )}
       </div>
     </form>
   );
+}
+
+function autosize(el: HTMLTextAreaElement | null, minHeight: number) {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${Math.max(el.scrollHeight, minHeight)}px`;
 }
 
 function fileExtension(file: File) {

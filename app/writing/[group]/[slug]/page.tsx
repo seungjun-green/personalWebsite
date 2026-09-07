@@ -39,7 +39,7 @@ export default async function WritingPostPage({
       <p className="text-[0.74rem] font-semibold uppercase tracking-[0.16em] text-[var(--cardinal)]">
         {post.groupName}
       </p>
-      <h1 className="mt-2 text-[2.1rem] font-semibold leading-tight tracking-[-0.03em] text-[var(--ink)]">
+      <h1 className="writing-canvas mt-2 text-[2.35rem] font-bold leading-[1.2] tracking-[-0.028em] text-[var(--ink)]">
         {post.title}
       </h1>
       <div className="mt-4 flex min-h-8 items-center justify-between gap-4 border-b border-[var(--line)] pb-5">

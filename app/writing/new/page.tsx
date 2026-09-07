@@ -11,17 +11,10 @@ export default async function NewWritingPage() {
     access.mode === "github" ? await getGithubWritingSnapshot() : null;
   const tree = snapshot?.tree ?? getWritingTree();
   return (
-    <div>
-      <h1 className="text-[1.8rem] font-semibold tracking-[-0.03em] text-[var(--ink)]">
-        New post
-      </h1>
-      <div className="mt-8">
-        <WritingEditor
-          groups={tree.groups}
-          mode={access.mode}
-          headSha={snapshot?.headSha}
-        />
-      </div>
-    </div>
+    <WritingEditor
+      groups={tree.groups}
+      mode={access.mode}
+      headSha={snapshot?.headSha}
+    />
   );
 }

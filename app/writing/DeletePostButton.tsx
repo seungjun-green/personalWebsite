@@ -9,12 +9,14 @@ export default function DeletePostButton({
   title,
   mode = "local",
   headSha,
+  className = "cursor-pointer border border-[var(--line-strong)] px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--ink-2)] transition-colors hover:border-[var(--cardinal)] hover:text-[var(--cardinal)] disabled:opacity-60",
 }: {
   groupId: string;
   slug: string;
   title: string;
   mode?: "local" | "github";
   headSha?: string;
+  className?: string;
 }) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
@@ -47,7 +49,7 @@ export default function DeletePostButton({
       type="button"
       disabled={deleting}
       onClick={() => void onDelete()}
-      className="cursor-pointer border border-[var(--line-strong)] px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--ink-2)] transition-colors hover:border-[var(--cardinal)] hover:text-[var(--cardinal)] disabled:opacity-60"
+      className={className}
     >
       {deleting ? "Deleting…" : "Delete"}
     </button>

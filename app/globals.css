@@ -132,9 +132,58 @@ a.writing-post-link:hover {
   width: 100%;
 }
 
+.writing-canvas {
+  font-family:
+    Charter, "Iowan Old Style", Palatino, "Palatino Linotype", Georgia,
+    "Times New Roman", serif;
+}
+
+.writing-editor-title,
+.writing-editor-title::placeholder {
+  font-family: inherit;
+}
+
+.writing-editor-title {
+  display: block;
+  width: 100%;
+  resize: none;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 2.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.028em;
+  outline: none;
+}
+
+.writing-editor-title::placeholder,
+.writing-editor-body::placeholder {
+  color: var(--ink-4);
+}
+
+.writing-editor-body {
+  display: block;
+  width: 100%;
+  min-height: 62vh;
+  resize: none;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: 1.22rem;
+  line-height: 1.78;
+  outline: none;
+}
+
 .writing-body {
   color: var(--ink-2);
-  font-size: 1rem;
+  font-family:
+    Charter, "Iowan Old Style", Palatino, "Palatino Linotype", Georgia,
+    "Times New Roman", serif;
+  font-size: 1.15rem;
   line-height: 1.8;
   overflow-wrap: break-word;
 }

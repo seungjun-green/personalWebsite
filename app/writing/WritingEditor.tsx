@@ -115,6 +115,8 @@ export default function WritingEditor({
         setPendingImages([]);
         setCommitUrl(data.url);
         setStatus("Committed to GitHub. Vercel deployment is in progress.");
+        router.push(data.post.href);
+        router.refresh();
         return;
       }
 
@@ -309,6 +311,13 @@ export default function WritingEditor({
               className="cursor-pointer text-[0.78rem] text-[var(--ink-4)] hover:text-[var(--cardinal)] disabled:opacity-60"
             />
           ) : null}
+          <button
+            type="button"
+            onClick={() => router.push(post?.href ?? "/writing")}
+            className="cursor-pointer text-[0.78rem] text-[var(--ink-4)] hover:text-[var(--ink-2)]"
+          >
+            Cancel
+          </button>
           <button
             type="submit"
             disabled={saving}

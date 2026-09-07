@@ -1,40 +1,23 @@
-import { auth, signIn, signOut } from "../../auth";
+"use client";
 
-export default async function WritingAuthControl() {
-  const session = await auth();
-  const signedIn = Boolean(session?.user);
+import { signIn, signOut } from "next-auth/react";
+import { useWritingAdmin } from "./WritingAdminContext";
 
-  if (signedIn) {
-    return (
-      <form
-        action={async () => {
-          "use server";
-          await signOut({ redirectTo: "/writing" });
-        }}
-      >
-        <button
-          type="submit"
-          className="cursor-pointer border border-[var(--line-strong)] bg-white px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--ink)] transition-colors hover:border-[var(--cardinal)]"
-        >
-          Sign out
-        </button>
-      </form>
-    );
-  }
+export default function WritingAuthControl() {
+  const { loaded, signedIn } = useWritingAdmin();
 
   return (
-    <form
-      action={async () => {
-        "use server";
-        await signIn("github", { redirectTo: "/writing" });
-      }}
+    <button
+      type="button"
+      disabled={!loaded}
+      onClick={() =>
+        void (signedIn
+          ? signOut({ redirectTo: "/writing" })
+          : signIn("github", { redirectTo: "/writing" }))
+      }
+      className="cursor-pointer border border-[var(--line-strong)] bg-white px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--ink)] transition-colors hover:border-[var(--cardinal)] disabled:cursor-default disabled:opacity-0"
     >
-      <button
-        type="submit"
-        className="cursor-pointer border border-[var(--line-strong)] bg-white px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--ink)] transition-colors hover:border-[var(--cardinal)]"
-      >
-        Sign in
-      </button>
-    </form>
+      {signedIn ? "Sign out" : "Sign in"}
+    </button>
   );
 }

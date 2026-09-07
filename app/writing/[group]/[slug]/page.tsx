@@ -1,10 +1,7 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getGithubWritingSnapshot } from "../../../lib/github-writing";
 import { getPost, listPosts } from "../../../lib/writing";
-import { getWritingAccess } from "../../../lib/writing-auth";
-import DeletePostButton from "../../DeletePostButton";
-import WritingMarkdown from "../../WritingMarkdown";
+import WritingPostAdminActions from "../../WritingPostAdminActions";
+import WritingPostView from "../../WritingPostView";
 
 export function generateStaticParams() {
   return listPosts().map((post) => ({
@@ -19,56 +16,13 @@ export default async function WritingPostPage({
   params: Promise<{ group: string; slug: string }>;
 }) {
   const { group, slug } = await params;
-  const access = await getWritingAccess();
-  const snapshot =
-    access.allowed && access.mode === "github"
-      ? await getGithubWritingSnapshot()
-      : null;
-  let post = getPost(group, slug);
-  if (!post && snapshot) {
-    post =
-      snapshot.posts.find(
-        (candidate) => candidate.groupId === group && candidate.slug === slug,
-      ) ?? null;
-  }
+  const post = getPost(group, slug);
   if (!post) notFound();
-  const editor = access.allowed;
 
   return (
-    <article>
-      <p className="text-[0.74rem] font-semibold uppercase tracking-[0.16em] text-[var(--cardinal)]">
-        {post.groupName}
-      </p>
-      <h1 className="writing-canvas mt-2 text-[2.35rem] font-bold leading-[1.2] tracking-[-0.028em] text-[var(--ink)]">
-        {post.title}
-      </h1>
-      <div className="mt-4 flex min-h-8 items-center justify-between gap-4 border-b border-[var(--line)] pb-5">
-        {post.date ? (
-          <time className="text-[0.82rem] text-[var(--ink-4)]">{post.date}</time>
-        ) : (
-          <span />
-        )}
-        {editor && (
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/writing/${post.groupId}/${post.slug}/edit`}
-              className="writing-secondary-action border border-[var(--line-strong)] px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.12em] transition-colors hover:border-[var(--cardinal)]"
-            >
-              Edit post
-            </Link>
-            <DeletePostButton
-              groupId={post.groupId}
-              slug={post.slug}
-              title={post.title}
-              mode={access.mode}
-              headSha={snapshot?.headSha}
-            />
-          </div>
-        )}
-      </div>
-      <div className="mt-7">
-        <WritingMarkdown>{post.body}</WritingMarkdown>
-      </div>
-    </article>
+    <WritingPostView
+      post={post}
+      actions={<WritingPostAdminActions post={post} />}
+    />
   );
 }

@@ -80,6 +80,26 @@ describe("atomic GitHub commits", () => {
     expect(mocks.createTree).not.toHaveBeenCalled();
   });
 
+  it("reuses a known base tree without fetching the commit again", async () => {
+    mocks.getRef.mockResolvedValue({ data: { object: { sha: "base" } } });
+    mocks.createBlob.mockResolvedValue({ data: { sha: "groups-blob" } });
+    mocks.createTree.mockResolvedValue({ data: { sha: "new-tree" } });
+    mocks.createCommit.mockResolvedValue({ data: { sha: "new-commit" } });
+    mocks.updateRef.mockResolvedValue({});
+
+    await commitGithubChanges(
+      "base",
+      "Update writing",
+      [{ path: "content/writing/groups.json", content: "{}\n" }],
+      "known-tree",
+    );
+
+    expect(mocks.getCommit).not.toHaveBeenCalled();
+    expect(mocks.createTree).toHaveBeenCalledWith(
+      expect.objectContaining({ base_tree: "known-tree" }),
+    );
+  });
+
   it("rejects paths outside writing content", async () => {
     mocks.getRef.mockResolvedValue({ data: { object: { sha: "base" } } });
     mocks.getCommit.mockResolvedValue({ data: { tree: { sha: "old-tree" } } });

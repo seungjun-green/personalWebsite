@@ -86,6 +86,7 @@ async function readBlob(octokit: Octokit, repo: RepositoryConfig, sha: string) {
 
 export async function getGithubWritingSnapshot(
   requestedRef?: string,
+  includePosts = true,
 ): Promise<RepositorySnapshot> {
   const repo = config();
   const octokit = client();
@@ -126,23 +127,25 @@ export async function getGithubWritingSnapshot(
   const postFiles = files.filter((file) =>
     /^content\/writing\/posts\/[^/]+\/[^/]+\.md$/.test(file.path),
   );
-  const posts = await Promise.all(
-    postFiles.map(async (file): Promise<WritingPost> => {
-      const [, , , groupId, filename] = file.path.split("/");
-      const slug = filename.slice(0, -3);
-      const raw = await readBlob(octokit, repo, file.sha);
-      const { data, body } = parseFrontMatter(raw);
-      return {
-        title: data.title || slug,
-        groupId,
-        groupName: groupNames.get(groupId) || groupId,
-        slug,
-        date: data.date || "",
-        href: `/writing/${groupId}/${slug}`,
-        body: body.trim(),
-      };
-    }),
-  );
+  const posts = includePosts
+    ? await Promise.all(
+        postFiles.map(async (file): Promise<WritingPost> => {
+          const [, , , groupId, filename] = file.path.split("/");
+          const slug = filename.slice(0, -3);
+          const raw = await readBlob(octokit, repo, file.sha);
+          const { data, body } = parseFrontMatter(raw);
+          return {
+            title: data.title || slug,
+            groupId,
+            groupName: groupNames.get(groupId) || groupId,
+            slug,
+            date: data.date || "",
+            href: `/writing/${groupId}/${slug}`,
+            body: body.trim(),
+          };
+        }),
+      )
+    : [];
   posts.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 
   return {
@@ -159,9 +162,12 @@ export async function commitGithubChanges(
   expectedHead: string,
   message: string,
   changes: CommitChange[],
+  baseTreeSha?: string,
 ) {
   const repo = config();
   const octokit = client();
+  for (const change of changes) assertRepoPath(change.path);
+
   const ref = await octokit.rest.git.getRef({
     owner: repo.owner,
     repo: repo.repo,
@@ -169,30 +175,33 @@ export async function commitGithubChanges(
   });
   if (ref.data.object.sha !== expectedHead) throw new GithubConflictError();
 
-  const baseCommit = await octokit.rest.git.getCommit({
-    owner: repo.owner,
-    repo: repo.repo,
-    commit_sha: expectedHead,
-  });
-  const entries: Array<{
-    path: string;
-    mode: "100644";
-    type: "blob";
-    sha: string | null;
-  }> = [];
-
-  for (const change of changes) {
-    assertRepoPath(change.path);
-    if ("delete" in change) {
-      entries.push({ path: change.path, mode: "100644", type: "blob", sha: null });
-    } else if ("existingSha" in change) {
-      entries.push({
-        path: change.path,
-        mode: "100644",
-        type: "blob",
-        sha: change.existingSha,
-      });
-    } else {
+  const resolvedBaseTreeSha =
+    baseTreeSha ??
+    (
+      await octokit.rest.git.getCommit({
+        owner: repo.owner,
+        repo: repo.repo,
+        commit_sha: expectedHead,
+      })
+    ).data.tree.sha;
+  const entries = await Promise.all(
+    changes.map(async (change): Promise<{
+      path: string;
+      mode: "100644";
+      type: "blob";
+      sha: string | null;
+    }> => {
+      if ("delete" in change) {
+        return { path: change.path, mode: "100644", type: "blob", sha: null };
+      }
+      if ("existingSha" in change) {
+        return {
+          path: change.path,
+          mode: "100644",
+          type: "blob",
+          sha: change.existingSha,
+        };
+      }
       const binary = Buffer.isBuffer(change.content);
       const content = binary
         ? Buffer.from(change.content).toString("base64")
@@ -203,14 +212,19 @@ export async function commitGithubChanges(
         content,
         encoding: binary ? "base64" : "utf-8",
       });
-      entries.push({ path: change.path, mode: "100644", type: "blob", sha: blob.data.sha });
-    }
-  }
+      return {
+        path: change.path,
+        mode: "100644",
+        type: "blob",
+        sha: blob.data.sha,
+      };
+    }),
+  );
 
   const tree = await octokit.rest.git.createTree({
     owner: repo.owner,
     repo: repo.repo,
-    base_tree: baseCommit.data.tree.sha,
+    base_tree: resolvedBaseTreeSha,
     tree: entries,
   });
   const operationId = crypto.randomUUID();
@@ -277,9 +291,12 @@ export async function updateGithubOrganization(
     return { id: requested.id, name, postOrder };
   });
 
-  return commitGithubChanges(expectedHead, "Update writing organization", [
-    { path: "content/writing/groups.json", content: serializeGroups(groups) },
-  ]);
+  return commitGithubChanges(
+    expectedHead,
+    "Update writing organization",
+    [{ path: "content/writing/groups.json", content: serializeGroups(groups) }],
+    snapshot.treeSha,
+  );
 }
 
 export type GithubPostInput = {
@@ -298,7 +315,7 @@ export async function saveGithubPost(
   input: GithubPostInput,
   images: { filename: string; bytes: Buffer }[],
 ) {
-  const snapshot = await getGithubWritingSnapshot(input.expectedHead);
+  const snapshot = await getGithubWritingSnapshot(input.expectedHead, false);
   const title = input.title.trim();
   const groupName = input.groupName.trim();
   if (!title || !groupName) throw new Error("Title and group are required.");
@@ -310,13 +327,15 @@ export async function saveGithubPost(
   assertSegment(groupId, "group");
   assertSegment(slug, "post slug");
 
-  const treeById = new Map(snapshot.tree.groups.map((group) => [group.id, group]));
   const groups = snapshot.groups.map((group) => ({
     ...group,
     postOrder: [
       ...(group.postOrder ??
-        treeById.get(group.id)?.posts.map((post) => post.slug) ??
-        []),
+        snapshot.files
+          .filter((file) =>
+            file.path.startsWith(`content/writing/posts/${group.id}/`),
+          )
+          .map((file) => file.path.split("/").at(-1)!.replace(/\.md$/, ""))),
     ],
   }));
   let group = groups.find((item) => item.id === groupId);
@@ -386,6 +405,7 @@ export async function saveGithubPost(
     input.expectedHead,
     input.previousSlug ? `Update writing: ${title}` : `Add writing: ${title}`,
     changes,
+    snapshot.treeSha,
   );
   const post: WritingPostMeta = {
     title,
@@ -405,8 +425,13 @@ export async function deleteGithubPost(
 ) {
   assertSegment(groupId, "group");
   assertSegment(slug, "post slug");
-  const snapshot = await getGithubWritingSnapshot(expectedHead);
-  if (!snapshot.posts.some((post) => post.groupId === groupId && post.slug === slug)) {
+  const snapshot = await getGithubWritingSnapshot(expectedHead, false);
+  if (
+    !snapshot.files.some(
+      (file) =>
+        file.path === `content/writing/posts/${groupId}/${slug}.md`,
+    )
+  ) {
     throw new Error("Post not found.");
   }
   const groups = removePostFromGroupOrder(snapshot.groups, groupId, slug);
@@ -418,5 +443,10 @@ export async function deleteGithubPost(
       .filter((file) => file.path.startsWith(prefix))
       .map((file): CommitChange => ({ path: file.path, delete: true })),
   ];
-  return commitGithubChanges(expectedHead, `Delete writing: ${groupId}/${slug}`, changes);
+  return commitGithubChanges(
+    expectedHead,
+    `Delete writing: ${groupId}/${slug}`,
+    changes,
+    snapshot.treeSha,
+  );
 }

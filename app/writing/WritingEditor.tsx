@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { WritingGroup, WritingPost } from "../lib/writing";
 import { slugify } from "../lib/slug";
 import DeletePostButton from "./DeletePostButton";
 import WritingMarkdown from "./WritingMarkdown";
+import WritingPostView from "./WritingPostView";
 
 type Props = {
   groups: WritingGroup[];
@@ -46,6 +48,7 @@ export default function WritingEditor({
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [repositoryHead, setRepositoryHead] = useState(headSha);
   const [commitUrl, setCommitUrl] = useState("");
+  const [publishedPost, setPublishedPost] = useState<WritingPost | null>(null);
 
   const slug = useMemo(() => slugify(title || post?.slug || "untitled"), [title, post?.slug]);
   const effectiveSlug = post?.slug ?? slug;
@@ -115,8 +118,9 @@ export default function WritingEditor({
         setPendingImages([]);
         setCommitUrl(data.url);
         setStatus("Committed to GitHub. Vercel deployment is in progress.");
-        router.push(data.post.href);
-        router.refresh();
+        const savedPost = { ...data.post, body: content } as WritingPost;
+        window.history.replaceState(window.history.state, "", savedPost.href);
+        setPublishedPost(savedPost);
         return;
       }
 
@@ -138,7 +142,6 @@ export default function WritingEditor({
       if (!res.ok) throw new Error(data.error || "Save failed");
       setStatus("Saved. Commit and push from the terminal when you’re ready.");
       router.push(data.post.href);
-      router.refresh();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Save failed");
     } finally {
@@ -260,6 +263,40 @@ export default function WritingEditor({
     }
   }
 
+  if (publishedPost) {
+    return (
+      <WritingPostView
+        post={publishedPost}
+        actions={
+          <div className="flex items-center gap-3 font-sans">
+            <span className="text-[0.76rem] text-[var(--ink-4)]">Saved</span>
+            <button
+              type="button"
+              onClick={() => {
+                window.history.replaceState(
+                  window.history.state,
+                  "",
+                  `${publishedPost.href}/edit`,
+                );
+                setPublishedPost(null);
+              }}
+              className="cursor-pointer border border-[var(--line-strong)] px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--ink-2)] transition-colors hover:border-[var(--cardinal)] hover:text-[var(--cardinal)]"
+            >
+              Edit post
+            </button>
+            <DeletePostButton
+              groupId={publishedPost.groupId}
+              slug={publishedPost.slug}
+              title={publishedPost.title}
+              mode={mode}
+              headSha={repositoryHead}
+            />
+          </div>
+        }
+      />
+    );
+  }
+
   return (
     <form
       className="writing-canvas relative"
@@ -311,13 +348,13 @@ export default function WritingEditor({
               className="cursor-pointer text-[0.78rem] text-[var(--ink-4)] hover:text-[var(--cardinal)] disabled:opacity-60"
             />
           ) : null}
-          <button
-            type="button"
-            onClick={() => router.push(post?.href ?? "/writing")}
-            className="cursor-pointer text-[0.78rem] text-[var(--ink-4)] hover:text-[var(--ink-2)]"
+          <Link
+            href={post?.href ?? "/writing"}
+            prefetch
+            className="writing-editor-cancel text-[0.78rem]"
           >
             Cancel
-          </button>
+          </Link>
           <button
             type="submit"
             disabled={saving}

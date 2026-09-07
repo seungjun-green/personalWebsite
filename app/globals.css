@@ -163,6 +163,16 @@ a.writing-post-link:hover {
   color: var(--ink-4);
 }
 
+.writing-editor-cancel,
+.writing-editor-cancel:hover {
+  color: var(--ink-4);
+  text-decoration: none;
+}
+
+.writing-editor-cancel:hover {
+  color: var(--ink-2);
+}
+
 .writing-editor-body {
   display: block;
   width: 100%;

@@ -27,6 +27,7 @@ export async function GET() {
     const snapshot = await getGithubWritingSnapshot();
     return NextResponse.json({
       editor: true,
+      signedIn: Boolean(access.session?.user),
       mode: "github",
       headSha: snapshot.headSha,
       tree: snapshot.tree,
@@ -34,6 +35,7 @@ export async function GET() {
   }
   return NextResponse.json({
     editor: access.allowed,
+    signedIn: Boolean(access.session?.user),
     mode: access.mode,
     tree: getWritingTree(),
   });

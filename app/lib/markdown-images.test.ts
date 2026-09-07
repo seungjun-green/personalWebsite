@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { markdownImageUrls, tokenizeMarkdownImages } from "./markdown-images";
+import {
+  markdownImageUrls,
+  normalizeMarkdownImageSpacing,
+  tokenizeMarkdownImages,
+} from "./markdown-images";
 
 describe("Markdown images", () => {
   it("separates image syntax from editable text", () => {
@@ -30,5 +34,21 @@ describe("Markdown images", () => {
       "/writing/a/one.png",
       "https://example.com/two.png",
     ]);
+  });
+
+  it("puts images on their own Markdown blocks", () => {
+    expect(
+      normalizeMarkdownImageSpacing(
+        "Text![Chart](/writing/notes/post/chart.png)## Next section",
+      ),
+    ).toBe(
+      "Text\n\n![Chart](/writing/notes/post/chart.png)\n\n## Next section",
+    );
+  });
+
+  it("preserves already separated image blocks", () => {
+    const content =
+      "Text\n\n![Chart](/writing/notes/post/chart.png)\n\n## Next section";
+    expect(normalizeMarkdownImageSpacing(content)).toBe(content);
   });
 });

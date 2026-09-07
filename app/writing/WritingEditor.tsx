@@ -3,8 +3,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { tokenizeMarkdownImages } from "../lib/markdown-images";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  normalizeMarkdownImageSpacing,
+  tokenizeMarkdownImages,
+} from "../lib/markdown-images";
 import type { WritingGroup, WritingPost } from "../lib/writing";
 import { slugify } from "../lib/slug";
 import DeletePostButton from "./DeletePostButton";
@@ -46,7 +49,9 @@ export default function WritingEditor({
   const pendingImagesRef = useRef<PendingImage[]>([]);
   const [title, setTitle] = useState(post?.title ?? "");
   const [groupName, setGroupName] = useState(post?.groupName ?? "");
-  const [content, setContent] = useState(post?.body ?? "");
+  const [content, setContent] = useState(() =>
+    normalizeMarkdownImageSpacing(post?.body ?? ""),
+  );
   const [dragging, setDragging] = useState(false);
   const dragCount = useRef(0);
   const [status, setStatus] = useState("");
@@ -71,6 +76,13 @@ export default function WritingEditor({
     if (post && groupName.trim() === post.groupName) return post.groupId;
     return undefined;
   }, [groupName, groups, post]);
+  const registerBodySegment = useCallback((element: HTMLTextAreaElement | null) => {
+    if (!element) return;
+    autosize(element, element.dataset.emptyDocument === "true" ? 420 : 36);
+    if (!textareaRef.current || !textareaRef.current.isConnected) {
+      textareaRef.current = element;
+    }
+  }, []);
 
   useEffect(() => {
     function preventFileNavigation(event: DragEvent) {
@@ -124,6 +136,7 @@ export default function WritingEditor({
     setSaving(true);
     setStatus("");
     setCommitUrl("");
+    const normalizedContent = normalizeMarkdownImageSpacing(content);
     try {
       if (mode === "github") {
         if (!repositoryHead) throw new Error("Repository version is missing. Refresh the page.");
@@ -136,7 +149,7 @@ export default function WritingEditor({
             groupName,
             groupId,
             slug: effectiveSlug,
-            content,
+            content: normalizedContent,
             date: post?.date,
             previousGroupId: post?.groupId,
             previousSlug: post?.slug,
@@ -156,7 +169,7 @@ export default function WritingEditor({
         setPendingImages([]);
         setCommitUrl(data.url);
         setStatus("Committed to GitHub. Vercel deployment is in progress.");
-        const savedPost = { ...data.post, body: content } as WritingPost;
+        const savedPost = { ...data.post, body: normalizedContent } as WritingPost;
         window.history.replaceState(window.history.state, "", savedPost.href);
         setPublishedPost(savedPost);
         return;
@@ -170,7 +183,7 @@ export default function WritingEditor({
           groupName,
           groupId,
           slug,
-          content,
+          content: normalizedContent,
           date: post?.date,
           previousGroupId: post?.groupId,
           previousSlug: post?.slug,
@@ -469,13 +482,9 @@ export default function WritingEditor({
               token.type === "text" ? (
                 <textarea
                   key={`text-${index}`}
-                  ref={(element) => {
-                    if (element) {
-                      autosize(element, content.length === 0 ? 420 : 36);
-                      if (!textareaRef.current) textareaRef.current = element;
-                    }
-                  }}
+                  ref={registerBodySegment}
                   rows={1}
+                  data-empty-document={content.length === 0}
                   data-content-start={token.start}
                   data-content-end={token.end}
                   aria-label="Body"
@@ -492,7 +501,7 @@ export default function WritingEditor({
                         nextValue +
                         current.slice(token.end),
                     );
-                    requestAnimationFrame(() => autosize(event.target, 36));
+                    requestAnimationFrame(() => growTextarea(event.target, 36));
                   }}
                   onPaste={onPaste}
                   placeholder={content.length === 0 ? "Start writing…" : undefined}
@@ -558,6 +567,11 @@ function autosize(el: HTMLTextAreaElement | null, minHeight: number) {
   if (!el) return;
   el.style.height = "auto";
   el.style.height = `${Math.max(el.scrollHeight, minHeight)}px`;
+}
+
+function growTextarea(el: HTMLTextAreaElement, minHeight: number) {
+  const nextHeight = Math.max(el.scrollHeight, minHeight);
+  if (nextHeight > el.clientHeight) el.style.height = `${nextHeight}px`;
 }
 
 function fileExtension(file: File) {

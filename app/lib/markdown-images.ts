@@ -54,3 +54,34 @@ export function markdownImageUrls(content: string) {
     .filter((token) => token.type === "image")
     .map((token) => token.url);
 }
+
+export function normalizeMarkdownImageSpacing(content: string) {
+  const tokens = tokenizeMarkdownImages(content);
+  if (!tokens.some((token) => token.type === "image")) return content;
+
+  let normalized = "";
+  let followsImage = false;
+
+  for (const token of tokens) {
+    if (token.type === "image") {
+      if (normalized && !normalized.endsWith("\n\n")) {
+        normalized = normalized.replace(/[ \t]+$/, "");
+        normalized += normalized.endsWith("\n") ? "\n" : "\n\n";
+      }
+      normalized += token.raw;
+      followsImage = true;
+      continue;
+    }
+
+    if (!followsImage) {
+      normalized += token.value;
+      continue;
+    }
+
+    const withoutLeadingBreaks = token.value.replace(/^(?:[ \t]*\n)*/, "");
+    normalized += `\n\n${withoutLeadingBreaks}`;
+    followsImage = false;
+  }
+
+  return normalized;
+}

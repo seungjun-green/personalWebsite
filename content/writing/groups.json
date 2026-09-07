@@ -2,7 +2,7 @@
   "groups": [
     {
       "id": "paper-summary",
-      "name": "Paper Summary",
+      "name": "NLP Bascis",
       "postOrder": [
         "understanding-policy-gradient-ppo-rloo-and-grpo"
       ]

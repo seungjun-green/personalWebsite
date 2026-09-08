@@ -15,7 +15,7 @@ BatchNorm is used in CNNs to keep each feature channel’s activations at a more
 
 ## Layer Norm
 
-Layer norm usally happens to MHA tensour outputs in transformer. When the tensor shape is (N, L, D), the normlaization is performed to each (:, :, D) so in total N*L times of seperate normalization happens here.
+Layer norm usally happens to MHA tensour outputs in transformer. When the tensor shape is (N, L, D), the normlaization is performed to each (D) so in total N*L times of seperate normalization happens here.
 
 ![Screenshot 2026-09-08 at 8.32.18 AM.png](/writing/paper-summary/4-types-of-normalization/1788823939659-0-screenshot-2026-09-08-at-8-32-18-am.png)
 

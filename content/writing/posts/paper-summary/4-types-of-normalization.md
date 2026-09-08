@@ -38,6 +38,90 @@ The process begins with a content image and a style image, which are both passed
 
 Finally, these modified features are passed through a decoder that translates them back into a standard pixel image, producing the final stylized output.
 
+### Why use AdaIn in Style Transfer?
+AdaIN is used because, in feature space, the per-channel mean and variance carry a lot of the image’s style information, while the spatial pattern inside each feature map carries more of the content structure.
+
+Suppose the encoded content and style features have shape
+
+$$
+(H, W, C)
+$$
+
+For each channel \(c\), AdaIN looks at the corresponding \(H \times W\) feature map.
+
+### Why normalize each \(H \times W\)?
+
+Each channel is a separate learned feature map. For example, one channel may respond to a certain texture, another to edges, another to colors, and so on.
+
+For the content feature \(x\), AdaIN computes
+
+$$
+\frac{x-\mu(x)}{\sigma(x)}
+$$
+
+where \(\mu(x)\) and \(\sigma(x)\) are calculated over \(H \times W\), separately for each channel.
+
+This removes that channel's original mean and variance while keeping its spatial pattern.
+
+So roughly:
+
+* spatial arrangement in \(H \times W\) → content structure
+* per-channel mean and variance → style-related statistics
+
+That is why normalization is performed over \(H \times W\), independently for every channel.
+
+### Why normalize only the content?
+
+Because the goal is:
+
+> remove the content's style statistics and replace them with the style image's statistics.
+
+First, the content statistics are removed:
+
+$$
+\hat{x}
+=
+\frac{x-\mu(x)}{\sigma(x)}
+$$
+
+Then the style image's statistics are injected:
+
+$$
+\sigma(y)\hat{x}+\mu(y)
+$$
+
+So the complete operation is
+
+$$
+\mathrm{AdaIN}(x,y)
+=
+\sigma(y)
+\left(
+\frac{x-\mu(x)}{\sigma(x)}
+\right)
++
+\mu(y)
+$$
+
+where:
+
+* \(x\) = content features
+* \(y\) = style features
+
+The style features are not normalized because their mean and variance are exactly the information we want to transfer.
+
+If we normalized the style features too and then discarded their original mean and variance, we would remove the style information that AdaIN is trying to copy.
+
+So the intuition is simply:
+
+$$
+\text{Content}
+\xrightarrow{\text{remove its }\mu,\sigma}
+\text{Normalized Content}
+\xrightarrow{\text{apply style }\mu,\sigma}
+\text{Stylized Content}
+$$
+
 
 ## Group Norm
 

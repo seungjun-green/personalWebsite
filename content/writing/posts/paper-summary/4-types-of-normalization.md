@@ -6,13 +6,16 @@ date: 2026-09-07
 There are total 4 types of normalization used in ML feild. In this post, it will explain each type of normalization and when its used, plus generally why we do normalization in ml. Anyway in this post, it will cover Batch Norm, Layer Norm, Instance Norm and Group Norm
 
 ## Batch Norm
-When input is (N, H, W, C) the normalization happens to each (;, ;, ;, C), so in total C number of times of seperate normalization happens. Usually used in CNN, for a reference look at the image below
+When input is (N, H, W, C) the nomalization happens to each (:, :, :, C) So in total C number of times of seperate normalization happens. Usually used in CNN, for a reference look at the image below.
+
+### Why Do Batch Norm in CNN?
+BatchNorm is used in CNNs to keep each feature channel’s activations at a more stable scale during training. For each channel, it looks at that channel’s values across the batch and all spatial locations, then normalizes them. This reduces large shifts in activation magnitude as the network updates, makes optimization more stable, and often allows faster training with larger learning rates.
 
 ![Screenshot 2026-09-08 at 8.30.14 AM.png](/writing/paper-summary/4-types-of-normalization/1788823816962-0-screenshot-2026-09-08-at-8-30-14-am.png)
 
 ## Layer Norm
 
-Layer norm usally happens to MHA tensour outputs in transformer. When the tensor shape is (N, L, D), it happens to (N, L, ;), so in total N*L times of seperate normalization happens here.
+Layer norm usally happens to MHA tensour outputs in transformer. When the tensor shape is (N, L, D), the normlaization is performed to each (:, :, D) so in total N*L times of seperate normalization happens here.
 
 ![Screenshot 2026-09-08 at 8.32.18 AM.png](/writing/paper-summary/4-types-of-normalization/1788823939659-0-screenshot-2026-09-08-at-8-32-18-am.png)
 
@@ -33,25 +36,7 @@ So the Instacne Normalization is only being happened to the style image.
 
 So here are doing AdaIN(x, y) for every H*W. And we’re doing instance norm to only content image not style image. 
 
-cddd
 
 
 
 
-
-
-## 
-
-
-
-
-
-
-
-
-
-
-
-
-
-dddddd

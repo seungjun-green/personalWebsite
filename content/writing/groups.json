@@ -8,7 +8,8 @@
         "4-types-of-normalization",
         "what-s-inductive-bais-in-llms-cnns",
         "how-much-vram-do-you-need-when-training-inferencing-a-model",
-        "kv-cache"
+        "kv-cache",
+        "maq-gqa-mla"
       ]
     },
     {

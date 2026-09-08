@@ -3,8 +3,6 @@ title: What’s Inductive Bais in LLMs/CNNs
 group: paper-summary
 date: 2026-09-08
 ---
-# What Is Inductive Bias in LLMs/CNNs?
-
 In short, inductive bias is a built-in assumption about how to generalize.
 
 A model never learns from scratch in a completely neutral way. Even before it sees any training data, its design already nudges it to prefer some kinds of explanations over others. In this sense, inductive bias is the set of assumptions a model makes before seeing data that guides how it generalizes from finite examples.

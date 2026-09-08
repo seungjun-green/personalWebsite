@@ -19,6 +19,9 @@ Layer norm usally happens to MHA tensour outputs in transformer. When the tensor
 
 ![Screenshot 2026-09-08 at 8.32.18 AM.png](/writing/paper-summary/4-types-of-normalization/1788823939659-0-screenshot-2026-09-08-at-8-32-18-am.png)
 
+### Why do LayerNorm in transformer?
+LayerNorm is used in Transformers to keep each token’s hidden representation at a stable scale as it passes through attention and feed-forward layers. For every token independently, it normalizes that token’s values across the hidden dimension \(D\). This avoids dependence on batch size or other token positions, makes training more stable, and helps prevent activations from becoming excessively large or small as the network gets deeper.
+
 ## Instance Norm
 
 If the tensor shape is (N, H, W, C), it happens to (H, W) So intotal N*C times of normalization happening here. Instance Norm usually happens to Style Transfer

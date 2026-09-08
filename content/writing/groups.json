@@ -6,7 +6,8 @@
       "postOrder": [
         "understanding-policy-gradient-ppo-rloo-and-grpo",
         "4-types-of-normalization",
-        "what-s-inductive-bais-in-llms-cnns"
+        "what-s-inductive-bais-in-llms-cnns",
+        "how-much-vram-do-you-need-when-training-inferencing-a-model"
       ]
     },
     {

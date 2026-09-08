@@ -3,19 +3,19 @@ title: 4 Types of Normalization
 group: paper-summary
 date: 2026-09-07
 ---
-There are total 4 types of normalization used in ML feild. In this post, it will explain each type of normalization and when its used, plus generally why we do normalization in ml. Anyway in this post, it will cover Batch Norm, Layer Norm, Instance Norm and Group Norm
+There are four main types of normalization commonly used in ML. This post explains each type of normalization, when it is used, and generally why normalization is used in ML. Anyway, this post covers Batch Norm, Layer Norm, Instance Norm, and Group Norm.
 
 ## Batch Norm
-When input is (N, H, W, C) the nomalization happens to each (N, H, W) So in total C number of times of seperate normalization happens. Usually used in CNN, for a reference look at the image below.
+When the input is ((N, H, W, C)), normalization is performed on each ((N, H, W)). So in total, (C) separate normalization operations happen. It is usually used in CNNs. For reference, look at the image below.
+
 
 ### Why Do Batch Norm in CNN?
-BatchNorm is used in CNNs to keep each feature channel’s activations at a more stable scale during training. For each channel, it looks at that channel’s values across the batch and all spatial locations, then normalizes them. This reduces large shifts in activation magnitude as the network updates, makes optimization more stable, and often allows faster training with larger learning rates.
+In a CNN, each channel represents a different learned feature map. For example, one channel may respond strongly to edges, while another may respond to textures or other visual patterns. Because each channel can have a different activation distribution, BatchNorm is a suitable choice since it normalizes each channel separately.
 
-![Screenshot 2026-09-08 at 8.30.14 AM.png](/writing/paper-summary/4-types-of-normalization/1788823816962-0-screenshot-2026-09-08-at-8-30-14-am.png)
 
 ## Layer Norm
 
-Layer norm usally happens to MHA tensour outputs in transformer. When the tensor shape is (N, L, D), the normlaization is performed to each (D) so in total N*L times of seperate normalization happens here.
+Layer Norm is usually applied to the outputs of Transformer sublayers such as MHA. When the tensor shape is \((N, L, D)\), normalization is performed over each \(D\)-dimensional vector, so in total, \(N \times L\) separate normalization operations happen.
 
 ![Screenshot 2026-09-08 at 8.32.18 AM.png](/writing/paper-summary/4-types-of-normalization/1788823939659-0-screenshot-2026-09-08-at-8-32-18-am.png)
 
@@ -33,12 +33,10 @@ Style Transfer is a technique that combines a content of one image(ex, a San Fra
 
 The process begins with a content image and a style image, which are both passed through a pre-trained VGG Encoder to extract the structural features of the content and the textural and color features of the style. These encoded features are then fed into the AdaIN (Adaptive Instance Normalization) block, which aligns the mean and variance of the content features to match those of the style features, effectively blending the style onto the content’s structure in the feature space. Finally, these modified features are passed through a Decoder that translates them back into a standard pixel image, producing the final stylized output.
 
-![Screenshot 2026-09-08 at 8.36.11 AM.png](/writing/paper-summary/4-types-of-normalization/1788824172905-0-screenshot-2026-09-08-at-8-36-11-am.png)
 
-So the Instacne Normalization is only being happened to the style image. 
+The process begins with a content image and a style image, which are both passed through a pre-trained VGG encoder to extract the structural features of the content and the textural and color features of the style. These encoded features are then fed into the AdaIN (Adaptive Instance Normalization) block, which aligns the mean and variance of the content features to match those of the style features, effectively blending the style onto the content’s structure in feature space.
 
-So here are doing AdaIN(x, y) for every H*W. And we’re doing instance norm to only content image not style image. 
-
+Finally, these modified features are passed through a decoder that translates them back into a standard pixel image, producing the final stylized output.
 
 
 ## Group Norm
@@ -61,12 +59,3 @@ It takes the bright rim channel and forcefully dims it down to average. It takes
 This destroys the relative differences in activation strength between those channels, wiping out the combined information the network needs to recognize the wheel.
 
 GN solves this by taking those G related channels, putting them into one group, and calculating a single mean and variance for that entire group. By scaling the whole group together, GN preserves the relative differences between the channels. If the “metallic rim” channel is firing twice as hard as the “rubber” channel, GN scales them both simultaneously, keeping that crucial 2:1 ratio intact.
-
-
-
-
-
-
-
-
-

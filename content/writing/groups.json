@@ -5,7 +5,8 @@
       "name": "NLP Bascis",
       "postOrder": [
         "understanding-policy-gradient-ppo-rloo-and-grpo",
-        "4-types-of-normalization"
+        "4-types-of-normalization",
+        "what-s-inductive-bais-in-llms-cnns"
       ]
     },
     {

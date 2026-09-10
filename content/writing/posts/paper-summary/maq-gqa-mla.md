@@ -3,8 +3,6 @@ title: MAQ, GQA, MLA
 group: paper-summary
 date: 2026-09-08
 ---
-2026-09-08
-
 MHA already works well, but people have come up with several ways to reduce the computational and memory cost of attention. Some of the major approaches are MQA, GQA, and MLA.
 
 MQA and GQA share a similar idea: use fewer \(W_K\) and \(W_V\) projections. In other words, instead of letting every attention head have its own K and V, multiple heads share them.

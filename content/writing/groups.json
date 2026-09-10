@@ -7,9 +7,9 @@
         "understanding-policy-gradient-ppo-rloo-and-grpo",
         "what-s-inductive-bais-in-llms-cnns",
         "how-much-vram-do-you-need-when-training-inferencing-a-model",
-        "kv-cache",
         "4-types-of-normalization",
-        "maq-gqa-mla"
+        "maq-gqa-mla",
+        "kv-cache"
       ]
     },
     {

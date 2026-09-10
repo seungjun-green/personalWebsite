@@ -5,12 +5,12 @@
       "name": "NLP Bascis",
       "postOrder": [
         "understanding-policy-gradient-ppo-rloo-and-grpo",
-        "what-s-inductive-bais-in-llms-cnns",
         "how-much-vram-do-you-need-when-training-inferencing-a-model",
         "4-types-of-normalization",
         "maq-gqa-mla",
         "kv-cache",
-        "core-probability-theories"
+        "core-probability-theories",
+        "what-s-inductive-bais-in-llms-cnns"
       ]
     },
     {

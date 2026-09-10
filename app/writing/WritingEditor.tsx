@@ -77,11 +77,47 @@ export default function WritingEditor({
   // external file drops and internal image drags so the same caret indicator
   // renders in both cases.
   const [dropOffset, setDropOffset] = useState<number | null>(null);
+  // Live pointer Y inside the body root (px) so the drop caret follows the
+  // cursor continuously instead of snapping only to discrete drop zones.
+  const [pointerY, setPointerY] = useState<number | null>(null);
   const dragActive = dragging || draggedImage !== null;
 
   const slug = useMemo(() => slugify(title || post?.slug || "untitled"), [title, post?.slug]);
   const effectiveSlug = post?.slug ?? slug;
   const bodyTokens = useMemo(() => tokenizeMarkdownImages(content), [content]);
+  // Split each text token at paragraph breaks (\n\n) so every paragraph is its
+  // own block. This gives the drag caret many drop offsets to snap to, even
+  // in a post that has no images at all.
+  const bodyBlocks = useMemo(() => {
+    const blocks: MarkdownImageToken[] = [];
+    for (const token of bodyTokens) {
+      if (token.type !== "text") {
+        blocks.push(token);
+        continue;
+      }
+      const source = token.value;
+      const separator = /\n{2,}/g;
+      let cursor = 0;
+      let match: RegExpExecArray | null;
+      while ((match = separator.exec(source)) !== null) {
+        const cut = match.index + match[0].length;
+        blocks.push({
+          type: "text",
+          value: source.slice(cursor, cut),
+          start: token.start + cursor,
+          end: token.start + cut,
+        });
+        cursor = cut;
+      }
+      blocks.push({
+        type: "text",
+        value: source.slice(cursor),
+        start: token.start + cursor,
+        end: token.end,
+      });
+    }
+    return blocks;
+  }, [bodyTokens]);
   const groupOptions = useMemo(
     () => Array.from(new Set(groups.map((g) => g.name))),
     [groups],
@@ -146,7 +182,7 @@ export default function WritingEditor({
     target.setSelectionRange(localCaret, localCaret);
     textareaRef.current = target;
     pendingCaretRef.current = null;
-  }, [bodyMode, bodyTokens]);
+  }, [bodyMode, bodyBlocks]);
 
   async function save() {
     setSaving(true);
@@ -332,6 +368,7 @@ export default function WritingEditor({
     if (targetOffset >= token.start && targetOffset <= token.end) {
       setDraggedImage(null);
       setDropOffset(null);
+      setPointerY(null);
       return;
     }
     const withoutImage =
@@ -359,21 +396,21 @@ export default function WritingEditor({
     setSelectedImage(moved ? `${moved.start}:${moved.url}` : null);
     setDraggedImage(null);
     setDropOffset(null);
+    setPointerY(null);
   }
 
   function imageDropZone(offset: number, key: string) {
-    const active = dragActive && dropOffset === offset;
     return (
       <div
         key={key}
         data-image-drop-offset={offset}
-        className={`relative transition-[height] ${dragActive ? "h-7" : "h-0"}`}
+        className={`relative transition-[height] ${dragActive ? "h-6" : "h-0"}`}
         onDragOver={(event) => {
           if (!dragActive) return;
           event.preventDefault();
           event.stopPropagation();
           event.dataTransfer.dropEffect = draggedImage ? "move" : "copy";
-          if (dropOffset !== offset) setDropOffset(offset);
+          updateDropOffsetFromPointer(event.clientY);
         }}
         onDrop={(event) => {
           if (!dragActive) return;
@@ -388,27 +425,30 @@ export default function WritingEditor({
             });
           }
           setDropOffset(null);
+          setPointerY(null);
           setDragging(false);
           dragCount.current = 0;
         }}
         aria-hidden="true"
-      >
-        {active ? (
-          <span className="pointer-events-none absolute inset-x-0 top-1/2 block h-px bg-[var(--cardinal)] before:absolute before:-top-[3px] before:-left-1 before:size-[7px] before:rounded-full before:bg-[var(--cardinal)]" />
-        ) : null}
-      </div>
+      />
     );
   }
 
-  // While a drag is active anywhere in the body, keep the caret indicator
-  // pinned to the drop-zone slot closest to the pointer. This works even when
-  // the pointer is over a textarea/image (which don't fire our own dragover
-  // handlers) so the user always sees where the image will land.
+  // While a drag is active, track the pointer Y relative to the body root and
+  // keep the drop offset snapped to the closest drop-zone slot. Both the
+  // floating caret (pointerY) and the offset (dropOffset) update on every
+  // dragover so the caret follows the mouse smoothly.
   function updateDropOffsetFromPointer(clientY: number) {
-    const zones = bodyRootRef.current?.querySelectorAll<HTMLElement>(
+    const root = bodyRootRef.current;
+    if (!root) return;
+    const rootRect = root.getBoundingClientRect();
+    const localY = clientY - rootRect.top;
+    setPointerY((current) => (current === localY ? current : localY));
+
+    const zones = root.querySelectorAll<HTMLElement>(
       "[data-image-drop-offset]",
     );
-    if (!zones?.length) return;
+    if (!zones.length) return;
     let nearest: HTMLElement | null = null;
     let nearestDist = Number.POSITIVE_INFINITY;
     for (const zone of zones) {
@@ -422,8 +462,10 @@ export default function WritingEditor({
     }
     if (!nearest) return;
     const nextOffset = Number(nearest.dataset.imageDropOffset);
-    if (!Number.isNaN(nextOffset) && dropOffset !== nextOffset) {
-      setDropOffset(nextOffset);
+    if (!Number.isNaN(nextOffset)) {
+      setDropOffset((current) =>
+        current === nextOffset ? current : nextOffset,
+      );
     }
   }
 
@@ -455,6 +497,7 @@ export default function WritingEditor({
     if (dragCount.current === 0) {
       setDragging(false);
       setDropOffset(null);
+      setPointerY(null);
     }
   }
 
@@ -471,6 +514,7 @@ export default function WritingEditor({
       void addImages(event.dataTransfer.files, insertion);
     }
     setDropOffset(null);
+    setPointerY(null);
   }
 
   function onPaste(event: React.ClipboardEvent<HTMLTextAreaElement>) {
@@ -625,8 +669,8 @@ export default function WritingEditor({
       <div ref={bodyRootRef} className="relative mt-8 min-h-[62vh]">
         {bodyMode === "edit" ? (
           <div>
-            {bodyTokens.map((token, index) =>
-              <Fragment key={`${token.type}-${index}`}>
+            {bodyBlocks.map((token, index) =>
+              <Fragment key={`${token.type}-${index}-${token.start}`}>
                 {imageDropZone(token.start, `drop-${index}`)}
                 {token.type === "text" ? (
                   <textarea
@@ -676,6 +720,7 @@ export default function WritingEditor({
                     onDragEnd={() => {
                       setDraggedImage(null);
                       setDropOffset(null);
+                      setPointerY(null);
                     }}
                     onCopy={(event) => {
                       event.preventDefault();
@@ -753,10 +798,19 @@ export default function WritingEditor({
           </p>
         )}
         {dragging && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/70 text-[0.92rem] text-[var(--cardinal)]">
+          <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center text-[0.82rem] uppercase tracking-[0.16em] text-[var(--cardinal)]">
             Drop image to insert
           </div>
         )}
+        {dragActive && pointerY !== null ? (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 z-20 h-0"
+            style={{ top: pointerY }}
+          >
+            <span className="absolute inset-x-0 top-0 block h-px bg-[var(--cardinal)] before:absolute before:-top-[3px] before:-left-1 before:size-[7px] before:rounded-full before:bg-[var(--cardinal)]" />
+          </div>
+        ) : null}
       </div>
     </form>
   );

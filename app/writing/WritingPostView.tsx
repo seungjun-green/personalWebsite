@@ -4,9 +4,11 @@ import WritingMarkdown from "./WritingMarkdown";
 export default function WritingPostView({
   post,
   actions,
+  imageSources,
 }: {
   post: WritingPost;
   actions?: React.ReactNode;
+  imageSources?: Record<string, string>;
 }) {
   return (
     <article>
@@ -25,7 +27,7 @@ export default function WritingPostView({
         {actions}
       </div>
       <div className="mt-7">
-        <WritingMarkdown>{post.body}</WritingMarkdown>
+        <WritingMarkdown imageSources={imageSources}>{post.body}</WritingMarkdown>
       </div>
     </article>
   );

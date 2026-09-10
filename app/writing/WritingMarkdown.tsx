@@ -1,15 +1,36 @@
+/* eslint-disable @next/next/no-img-element */
+
 import rehypeKatex from "rehype-katex";
 import Markdown from "react-markdown";
 import remarkMath from "remark-math";
 import remarkCompactMathNotation from "../lib/compact-math-notation";
 import { normalizeMarkdownImageSpacing } from "../lib/markdown-images";
 
-export default function WritingMarkdown({ children }: { children: string }) {
+export default function WritingMarkdown({
+  children,
+  imageSources,
+}: {
+  children: string;
+  imageSources?: Record<string, string>;
+}) {
   return (
     <div className="writing-body">
       <Markdown
         remarkPlugins={[remarkMath, remarkCompactMathNotation]}
         rehypePlugins={[rehypeKatex]}
+        components={{
+          img: ({ src, alt, ...props }) => (
+            <img
+              {...props}
+              src={
+                typeof src === "string"
+                  ? imageSources?.[src] ?? src
+                  : src
+              }
+              alt={alt ?? ""}
+            />
+          ),
+        }}
       >
         {normalizeMarkdownImageSpacing(children)}
       </Markdown>

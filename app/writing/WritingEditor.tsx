@@ -34,10 +34,13 @@ type PendingImage = {
   file: File;
   filename: string;
   url: string;
-  previewUrl: string;
 };
 
 type DraggedImage = Extract<MarkdownImageToken, { type: "image" }>;
+
+type ViewportAnchor =
+  | { top: number; imageUrl: string }
+  | { top: number; contentOffset: number };
 
 const PUBLISHABLE_IMAGE_TYPES = new Set([
   "image/png",
@@ -59,9 +62,11 @@ export default function WritingEditor({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const bodyRootRef = useRef<HTMLDivElement>(null);
   const pendingCaretRef = useRef<number | null>(null);
-  const pendingImagesRef = useRef<PendingImage[]>([]);
+  const imagePreviewsRef = useRef<Record<string, string>>({});
   const draggedImageRef = useRef<DraggedImage | null>(null);
   const dropOffsetRef = useRef<number | null>(null);
+  const pendingDropTopRef = useRef<number | null>(null);
+  const pendingViewportAnchorRef = useRef<ViewportAnchor | null>(null);
   const [title, setTitle] = useState(post?.title ?? "");
   const [groupName, setGroupName] = useState(post?.groupName ?? "");
   const [content, setContent] = useState(() =>
@@ -73,6 +78,7 @@ export default function WritingEditor({
   const [saving, setSaving] = useState(false);
   const [bodyMode, setBodyMode] = useState<"edit" | "preview">("edit");
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
   const [bodyLayoutVersion, setBodyLayoutVersion] = useState(0);
   const [repositoryHead, setRepositoryHead] = useState(headSha);
   const [commitUrl, setCommitUrl] = useState("");
@@ -105,6 +111,64 @@ export default function WritingEditor({
     }
   }, []);
 
+  function restoreCaretWithoutScrolling() {
+    const caret = pendingCaretRef.current;
+    if (caret === null) return;
+    const segments = bodyRootRef.current?.querySelectorAll<HTMLTextAreaElement>(
+      "textarea[data-content-start]",
+    );
+    const target = Array.from(segments ?? []).find((segment) => {
+      const start = Number(segment.dataset.contentStart);
+      const end = Number(segment.dataset.contentEnd);
+      return caret >= start && caret <= end;
+    });
+    pendingCaretRef.current = null;
+    if (!target) return;
+    const localCaret = Math.min(
+      Math.max(caret - Number(target.dataset.contentStart), 0),
+      target.value.length,
+    );
+    target.focus({ preventScroll: true });
+    target.setSelectionRange(localCaret, localCaret);
+    textareaRef.current = target;
+  }
+
+  function restoreViewportAnchor() {
+    const anchor = pendingViewportAnchorRef.current;
+    const root = bodyRootRef.current;
+    if (!anchor || !root) return;
+
+    let targetTop: number | null = null;
+    if ("imageUrl" in anchor) {
+      const image = Array.from(
+        root.querySelectorAll<HTMLElement>("[data-image-url]"),
+      ).find((candidate) => candidate.dataset.imageUrl === anchor.imageUrl);
+      targetTop = image?.getBoundingClientRect().top ?? null;
+    } else {
+      const textarea = Array.from(
+        root.querySelectorAll<HTMLTextAreaElement>(
+          "textarea[data-content-start]",
+        ),
+      ).find((candidate) => {
+        const start = Number(candidate.dataset.contentStart);
+        const end = Number(candidate.dataset.contentEnd);
+        return anchor.contentOffset >= start && anchor.contentOffset <= end;
+      });
+      if (textarea) {
+        const localOffset =
+          anchor.contentOffset - Number(textarea.dataset.contentStart);
+        targetTop =
+          textarea.getBoundingClientRect().top +
+          textareaCaretTop(textarea, localOffset);
+      }
+    }
+
+    pendingViewportAnchorRef.current = null;
+    if (targetTop !== null) {
+      window.scrollBy(0, targetTop - anchor.top);
+    }
+  }
+
   useEffect(() => {
     function preventFileNavigation(event: DragEvent) {
       if (event.dataTransfer?.types.includes("Files")) event.preventDefault();
@@ -135,39 +199,18 @@ export default function WritingEditor({
         segment.dataset.emptyDocument === "true" ? 420 : 36,
       );
     }
+    restoreCaretWithoutScrolling();
+    restoreViewportAnchor();
   }, [bodyLayoutVersion, bodyMode]);
-
-  useEffect(() => {
-    pendingImagesRef.current = pendingImages;
-  }, [pendingImages]);
 
   useEffect(
     () => () => {
-      for (const image of pendingImagesRef.current) {
-        URL.revokeObjectURL(image.previewUrl);
+      for (const previewUrl of Object.values(imagePreviewsRef.current)) {
+        URL.revokeObjectURL(previewUrl);
       }
     },
     [],
   );
-
-  useEffect(() => {
-    const caret = pendingCaretRef.current;
-    if (bodyMode !== "edit" || caret === null) return;
-    const segments = bodyRootRef.current?.querySelectorAll<HTMLTextAreaElement>(
-      "textarea[data-content-start]",
-    );
-    const target = Array.from(segments ?? []).find((segment) => {
-      const start = Number(segment.dataset.contentStart);
-      const end = Number(segment.dataset.contentEnd);
-      return caret >= start && caret <= end;
-    });
-    if (!target) return;
-    const localCaret = caret - Number(target.dataset.contentStart);
-    target.focus();
-    target.setSelectionRange(localCaret, localCaret);
-    textareaRef.current = target;
-    pendingCaretRef.current = null;
-  }, [bodyMode, bodyTokens]);
 
   async function save() {
     setSaving(true);
@@ -202,7 +245,6 @@ export default function WritingEditor({
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Publish failed.");
         setRepositoryHead(data.sha);
-        for (const image of pendingImages) URL.revokeObjectURL(image.previewUrl);
         setPendingImages([]);
         setCommitUrl(data.url);
         setStatus("Committed to GitHub. Vercel deployment is in progress.");
@@ -245,6 +287,7 @@ export default function WritingEditor({
       (file) => isSupportedImageFile(file, mode),
     );
     if (images.length === 0) {
+      pendingDropTopRef.current = null;
       setStatus(
         mode === "github"
           ? "Drop a PNG, JPEG, GIF, or WebP image."
@@ -253,6 +296,7 @@ export default function WritingEditor({
       return;
     }
     if (!title.trim() || !groupName.trim()) {
+      pendingDropTopRef.current = null;
       setStatus("Set a group and title before adding images.");
       return;
     }
@@ -274,36 +318,53 @@ export default function WritingEditor({
         if (groupId) form.set("groupId", groupId);
         form.set("slug", effectiveSlug);
         let imageUrl: string;
+        let filename: string;
         if (mode === "github") {
           const extension = fileExtension(file);
           const base = slugify(file.name.replace(/\.[^.]+$/, "") || "image");
           // This function runs only in response to a drop or paste event.
           // eslint-disable-next-line react-hooks/purity
-          const filename = `${Date.now()}-${images.indexOf(file)}-${base}${extension}`;
+          filename = `${Date.now()}-${images.indexOf(file)}-${base}${extension}`;
           const resolvedGroupId = groupId || slugify(groupName);
           imageUrl = `/writing/${resolvedGroupId}/${effectiveSlug}/${filename}`;
-          setPendingImages((current) => [
-            ...current,
-            {
-              file,
-              filename,
-              url: imageUrl,
-              previewUrl: URL.createObjectURL(file),
-            },
-          ]);
         } else {
           const res = await fetch("/api/writing/upload", { method: "POST", body: form });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || "Upload failed");
           imageUrl = data.url;
+          filename = imageUrl.split("/").pop() || file.name;
         }
-        const alt = file.name.replace(/[[\]]/g, "");
-        const snippet = `\n![${alt}](${imageUrl})\n`;
+        const previewUrl = URL.createObjectURL(file);
+        imagePreviewsRef.current[imageUrl] = previewUrl;
+        setPendingImages((current) => [
+          ...current,
+          { file, filename, url: imageUrl },
+        ]);
+        setImagePreviews((current) => ({
+          ...current,
+          [imageUrl]: previewUrl,
+        }));
+        if (
+          pendingDropTopRef.current !== null &&
+          pendingViewportAnchorRef.current === null
+        ) {
+          pendingViewportAnchorRef.current = {
+            top: pendingDropTopRef.current,
+            imageUrl,
+          };
+        }
+        const alt = slugify(file.name.replace(/\.[^.]+$/, "") || "image");
+        const snippet = `\n\n![${alt}](${imageUrl})\n\n`;
         next = next.slice(0, start) + snippet + next.slice(end);
         start += snippet.length;
         end = start;
       }
-      pendingCaretRef.current = start;
+      next = normalizeMarkdownImageSpacing(next);
+      const lastImage = tokenizeMarkdownImages(next)
+        .filter((token) => token.type === "image")
+        .at(-1);
+      pendingCaretRef.current = lastImage?.end ?? next.length;
+      pendingDropTopRef.current = null;
       setContent(next);
       setBodyLayoutVersion((current) => current + 1);
       setStatus(
@@ -314,20 +375,44 @@ export default function WritingEditor({
             : "Image added.",
       );
     } catch (error) {
+      pendingDropTopRef.current = null;
       setStatus(error instanceof Error ? error.message : "Upload failed");
     }
   }
 
   function removeImage(start: number, end: number, url: string) {
-    setContent((current) => current.slice(0, start) + current.slice(end));
+    const image = Array.from(
+      bodyRootRef.current?.querySelectorAll<HTMLElement>("[data-image-url]") ??
+        [],
+    ).find(
+      (candidate) =>
+        candidate.dataset.imageUrl === url &&
+        Number(candidate.dataset.contentStart) === start,
+    );
+    if (image) {
+      pendingViewportAnchorRef.current = {
+        top: image.getBoundingClientRect().top,
+        contentOffset: start,
+      };
+    }
+    setContent((current) =>
+      normalizeMarkdownImageSpacing(
+        current.slice(0, start) + current.slice(end),
+      ),
+    );
     setBodyLayoutVersion((current) => current + 1);
     setPendingImages((current) =>
-      current.filter((image) => {
-        if (image.url !== url) return true;
-        URL.revokeObjectURL(image.previewUrl);
-        return false;
-      }),
+      current.filter((image) => image.url !== url),
     );
+    setImagePreviews((current) => {
+      const previewUrl = current[url];
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      delete imagePreviewsRef.current[url];
+      if (!previewUrl) return current;
+      const next = { ...current };
+      delete next[url];
+      return next;
+    });
     setSelectedImage(null);
     pendingCaretRef.current = start;
   }
@@ -354,6 +439,7 @@ export default function WritingEditor({
     if (targetOffset >= token.start && targetOffset <= token.end) {
       draggedImageRef.current = null;
       dropOffsetRef.current = null;
+      pendingViewportAnchorRef.current = null;
       setDraggedImage(null);
       setPointerY(null);
       return;
@@ -514,9 +600,14 @@ export default function WritingEditor({
     const files = droppedFiles(event.dataTransfer);
 
     if (internalImage) {
+      pendingViewportAnchorRef.current = {
+        top: event.clientY,
+        imageUrl: internalImage.url,
+      };
       moveImage(internalImage, target);
       setStatus("Image moved.");
     } else if (files.length) {
+      pendingDropTopRef.current = event.clientY;
       void addImages(files, { start: target, end: target });
     } else {
       setStatus("No image file was found in that drop.");
@@ -538,6 +629,7 @@ export default function WritingEditor({
     return (
       <WritingPostView
         post={publishedPost}
+        imageSources={imagePreviews}
         actions={
           <div className="flex items-center gap-3 font-sans">
             <span className="text-[0.76rem] text-[var(--ink-4)]">Saved</span>
@@ -679,11 +771,13 @@ export default function WritingEditor({
         {bodyMode === "edit" ? (
           <div>
             {bodyTokens.map((token, index) =>
-              <Fragment key={`${token.type}-${index}-${token.start}`}>
+              <Fragment key={`${token.type}-${token.start}-${index}`}>
                 {imageDropZone(token.start, `drop-${index}`)}
                 {token.type === "text" ? (
+                  token.value.length === 0 ? null : (
                   <textarea
                     ref={registerBodySegment}
+                    key={`segment-${token.start}-${bodyLayoutVersion}`}
                     rows={1}
                     data-empty-document={content.length === 0}
                     data-content-start={token.start}
@@ -708,12 +802,14 @@ export default function WritingEditor({
                     placeholder={content.length === 0 ? "Start writing…" : undefined}
                     className="writing-editor-segment"
                   />
+                  )
                 ) : (
                   <button
                     type="button"
                     draggable
                     data-content-start={token.start}
                     data-content-end={token.end}
+                    data-image-url={token.url}
                     onClick={(event) => {
                       event.currentTarget.focus();
                       setSelectedImage(`${token.start}:${token.url}`);
@@ -781,20 +877,24 @@ export default function WritingEditor({
                     aria-label={`${token.alt || "Image"}. Drag to move, or use Copy, Cut, Paste, Backspace, or Delete.`}
                   >
                     <img
-                      src={
-                        pendingImages.find((image) => image.url === token.url)
-                          ?.previewUrl ?? token.url
-                      }
-                      alt={token.alt}
+                      src={imagePreviews[token.url] ?? token.url}
+                      alt={token.alt || "Image"}
                       draggable={false}
+                      onError={(event) => {
+                        const preview = imagePreviewsRef.current[token.url];
+                        if (preview && event.currentTarget.src !== preview) {
+                          event.currentTarget.src = preview;
+                          return;
+                        }
+                        if (event.currentTarget.dataset.fallbackApplied) return;
+                        event.currentTarget.dataset.fallbackApplied = "true";
+                        event.currentTarget.src = githubRawImageUrl(token.url);
+                      }}
                       className="mx-auto block max-h-[70vh] max-w-full"
                     />
-                    {selectedImage === `${token.start}:${token.url}` ||
-                    token.alt ? (
+                    {selectedImage === `${token.start}:${token.url}` ? (
                       <span className="mt-2 block text-center font-sans text-[0.76rem] text-[var(--ink-4)]">
-                        {selectedImage === `${token.start}:${token.url}`
-                          ? "Drag to move · ⌘C copy · ⌘V paste · ⌘X cut · Backspace delete"
-                          : token.alt}
+                        Drag to move · ⌘C copy · ⌘V paste · ⌘X cut · Backspace delete
                       </span>
                     ) : null}
                   </button>
@@ -838,6 +938,39 @@ function autosize(el: HTMLTextAreaElement | null, minHeight: number) {
 function growTextarea(el: HTMLTextAreaElement, minHeight: number) {
   const nextHeight = Math.max(el.scrollHeight, minHeight);
   if (nextHeight > el.clientHeight) el.style.height = `${nextHeight}px`;
+}
+
+function textareaCaretTop(textarea: HTMLTextAreaElement, offset: number) {
+  const style = getComputedStyle(textarea);
+  const mirror = document.createElement("div");
+  const marker = document.createElement("span");
+  mirror.style.position = "fixed";
+  mirror.style.left = "-10000px";
+  mirror.style.top = "0";
+  mirror.style.visibility = "hidden";
+  mirror.style.boxSizing = style.boxSizing;
+  mirror.style.width = `${textarea.getBoundingClientRect().width}px`;
+  mirror.style.padding = style.padding;
+  mirror.style.border = style.border;
+  mirror.style.font = style.font;
+  mirror.style.letterSpacing = style.letterSpacing;
+  mirror.style.lineHeight = style.lineHeight;
+  mirror.style.whiteSpace = "pre-wrap";
+  mirror.style.overflowWrap = "break-word";
+  mirror.style.wordBreak = style.wordBreak;
+  mirror.textContent = textarea.value.slice(0, offset);
+  marker.textContent = "\u200b";
+  mirror.appendChild(marker);
+  document.body.appendChild(mirror);
+  const top =
+    marker.getBoundingClientRect().top - mirror.getBoundingClientRect().top;
+  mirror.remove();
+  return top;
+}
+
+function githubRawImageUrl(url: string) {
+  if (!url.startsWith("/writing/")) return url;
+  return `https://raw.githubusercontent.com/seungjun-green/personalWebsite/main/public${url}`;
 }
 
 function isSupportedImageFile(file: File, mode: "local" | "github") {

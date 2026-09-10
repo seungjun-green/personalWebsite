@@ -7,6 +7,7 @@ import {
   Fragment,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -72,6 +73,7 @@ export default function WritingEditor({
   const [saving, setSaving] = useState(false);
   const [bodyMode, setBodyMode] = useState<"edit" | "preview">("edit");
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const [bodyLayoutVersion, setBodyLayoutVersion] = useState(0);
   const [repositoryHead, setRepositoryHead] = useState(headSha);
   const [commitUrl, setCommitUrl] = useState("");
   const [publishedPost, setPublishedPost] = useState<WritingPost | null>(null);
@@ -118,6 +120,22 @@ export default function WritingEditor({
   useEffect(() => {
     autosize(titleRef.current, 52);
   }, [title]);
+
+  // Image operations split or join text segments. React can reuse a textarea
+  // with the height of the old, much longer segment, creating a large blank
+  // area around the image. Re-measure only after those structural operations,
+  // not after ordinary typing.
+  useLayoutEffect(() => {
+    const segments = bodyRootRef.current?.querySelectorAll<HTMLTextAreaElement>(
+      "textarea[data-content-start]",
+    );
+    for (const segment of segments ?? []) {
+      autosize(
+        segment,
+        segment.dataset.emptyDocument === "true" ? 420 : 36,
+      );
+    }
+  }, [bodyLayoutVersion, bodyMode]);
 
   useEffect(() => {
     pendingImagesRef.current = pendingImages;
@@ -287,6 +305,7 @@ export default function WritingEditor({
       }
       pendingCaretRef.current = start;
       setContent(next);
+      setBodyLayoutVersion((current) => current + 1);
       setStatus(
         mode === "github"
           ? `${images.length > 1 ? "Images" : "Image"} staged. Save to publish.`
@@ -301,6 +320,7 @@ export default function WritingEditor({
 
   function removeImage(start: number, end: number, url: string) {
     setContent((current) => current.slice(0, start) + current.slice(end));
+    setBodyLayoutVersion((current) => current + 1);
     setPendingImages((current) =>
       current.filter((image) => {
         if (image.url !== url) return true;
@@ -320,6 +340,7 @@ export default function WritingEditor({
       content.slice(0, token.end) + markdown + content.slice(token.end),
     );
     setContent(next);
+    setBodyLayoutVersion((current) => current + 1);
     const inserted = tokenizeMarkdownImages(next)
       .filter((candidate) => candidate.type === "image")
       .find(
@@ -359,6 +380,7 @@ export default function WritingEditor({
           : closest;
       }, null);
     setContent(next);
+    setBodyLayoutVersion((current) => current + 1);
     setSelectedImage(moved ? `${moved.start}:${moved.url}` : null);
     draggedImageRef.current = null;
     dropOffsetRef.current = null;

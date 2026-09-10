@@ -444,7 +444,10 @@ export default function WritingEditor({
   }
 
   function hasFiles(event: React.DragEvent) {
-    return Array.from(event.dataTransfer.types).includes("Files");
+    return (
+      Array.from(event.dataTransfer.types).includes("Files") ||
+      Array.from(event.dataTransfer.items).some((item) => item.kind === "file")
+    );
   }
 
   function onDragEnter(event: React.DragEvent) {
@@ -486,11 +489,15 @@ export default function WritingEditor({
     const target =
       dropOffsetRef.current ?? computeDropOffsetAt(event.clientY);
     const internalImage = draggedImageRef.current;
+    const files = droppedFiles(event.dataTransfer);
 
     if (internalImage) {
       moveImage(internalImage, target);
-    } else if (event.dataTransfer.files?.length) {
-      void addImages(event.dataTransfer.files, { start: target, end: target });
+      setStatus("Image moved.");
+    } else if (files.length) {
+      void addImages(files, { start: target, end: target });
+    } else {
+      setStatus("No image file was found in that drop.");
     }
 
     dropOffsetRef.current = null;
@@ -546,10 +553,10 @@ export default function WritingEditor({
         event.preventDefault();
         void save();
       }}
-      onDragEnter={onDragEnter}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
+      onDragEnterCapture={onDragEnter}
+      onDragOverCapture={onDragOver}
+      onDragLeaveCapture={onDragLeave}
+      onDropCapture={onDrop}
     >
       <div className="sticky top-0 z-10 mb-8 flex items-center justify-between gap-4 bg-white/90 py-2 font-sans backdrop-blur-sm">
         <div className="flex items-center gap-4" role="group" aria-label="Editor view">
@@ -819,6 +826,14 @@ function isSupportedImageFile(file: File, mode: "local" | "github") {
     );
   }
   return file.type.startsWith("image/") || IMAGE_EXTENSION.test(file.name);
+}
+
+function droppedFiles(dataTransfer: DataTransfer) {
+  const itemFiles = Array.from(dataTransfer.items)
+    .filter((item) => item.kind === "file")
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => file !== null);
+  return itemFiles.length ? itemFiles : Array.from(dataTransfer.files);
 }
 
 function fileExtension(file: File) {

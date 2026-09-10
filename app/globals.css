@@ -267,6 +267,55 @@ a.writing-post-link:hover {
   color: var(--ink-3);
 }
 
+.writing-table-scroll {
+  width: 100%;
+  margin: 1.5em 0;
+  overflow-x: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: 0.4rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.writing-body table {
+  width: 100%;
+  min-width: 42rem;
+  border-collapse: collapse;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+    "Segoe UI", sans-serif;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.writing-body th,
+.writing-body td {
+  padding: 0.7rem 0.85rem;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.writing-body th:last-child,
+.writing-body td:last-child {
+  border-right: 0;
+}
+
+.writing-body tr:last-child td {
+  border-bottom: 0;
+}
+
+.writing-body th {
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.writing-body tbody tr:nth-child(even) {
+  background: #fdfdfd;
+}
+
 .writing-body hr {
   margin: 2em 0;
   border: 0;

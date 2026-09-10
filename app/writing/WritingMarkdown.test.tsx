@@ -11,4 +11,17 @@ describe("WritingMarkdown", () => {
     expect(html).toContain("katex-display");
     expect(html).not.toContain("$$");
   });
+
+  it("renders GitHub-flavored Markdown tables", () => {
+    const html = renderToStaticMarkup(
+      <WritingMarkdown>{`| Step | Shape | Complexity |
+| --- | --- | --- |
+| Q | $N,t,D$ | $O(t)$ |`}</WritingMarkdown>,
+    );
+
+    expect(html).toContain('class="writing-table-scroll"');
+    expect(html).toContain("<table>");
+    expect(html).toContain("<th>Step</th>");
+    expect(html).toContain("katex");
+  });
 });

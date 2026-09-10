@@ -297,6 +297,15 @@ a.writing-post-link:hover {
   padding: 0.4em 0;
 }
 
+/*
+ * KaTeX's default subscript / superscript sizing is too chunky for compact
+ * paper-style notation like (Q W_{UK}^{T}) C_{KV}^{T}. Shrink every super /
+ * subscript so labels sit clearly below the base letter's cap height.
+ */
+.writing-body .katex .msupsub {
+  font-size: 0.72em;
+}
+
 .writing-body .katex .vlist:has(.stretchy.fbox) .boxpad {
   border: 1px solid var(--ink-2);
   background: var(--paper);

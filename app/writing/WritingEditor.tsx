@@ -3,8 +3,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  type MarkdownImageToken,
   normalizeMarkdownImageSpacing,
   tokenizeMarkdownImages,
 } from "../lib/markdown-images";
@@ -27,6 +35,8 @@ type PendingImage = {
   url: string;
   previewUrl: string;
 };
+
+type DraggedImage = Extract<MarkdownImageToken, { type: "image" }>;
 
 const PUBLISHABLE_IMAGE_TYPES = new Set([
   "image/png",
@@ -62,6 +72,8 @@ export default function WritingEditor({
   const [commitUrl, setCommitUrl] = useState("");
   const [publishedPost, setPublishedPost] = useState<WritingPost | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [draggedImage, setDraggedImage] = useState<DraggedImage | null>(null);
+  const [dropOffset, setDropOffset] = useState<number | null>(null);
 
   const slug = useMemo(() => slugify(title || post?.slug || "untitled"), [title, post?.slug]);
   const effectiveSlug = post?.slug ?? slug;
@@ -200,7 +212,10 @@ export default function WritingEditor({
     }
   }
 
-  async function addImages(files: FileList | File[]) {
+  async function addImages(
+    files: FileList | File[],
+    insertion?: { start: number; end: number },
+  ) {
     const images = Array.from(files).filter(
       (file) =>
         file.type.startsWith("image/") &&
@@ -221,8 +236,9 @@ export default function WritingEditor({
 
     const el = textareaRef.current;
     const segmentStart = Number(el?.dataset.contentStart ?? content.length);
-    let start = segmentStart + (el?.selectionStart ?? 0);
-    let end = segmentStart + (el?.selectionEnd ?? 0);
+    let start =
+      insertion?.start ?? segmentStart + (el?.selectionStart ?? 0);
+    let end = insertion?.end ?? segmentStart + (el?.selectionEnd ?? 0);
     let next = content;
 
     setStatus(images.length > 1 ? "Uploading images…" : "Uploading image…");
@@ -238,6 +254,8 @@ export default function WritingEditor({
         if (mode === "github") {
           const extension = fileExtension(file);
           const base = slugify(file.name.replace(/\.[^.]+$/, "") || "image");
+          // This function runs only in response to a drop or paste event.
+          // eslint-disable-next-line react-hooks/purity
           const filename = `${Date.now()}-${images.indexOf(file)}-${base}${extension}`;
           const resolvedGroupId = groupId || slugify(groupName);
           imageUrl = `/writing/${resolvedGroupId}/${effectiveSlug}/${filename}`;
@@ -287,6 +305,87 @@ export default function WritingEditor({
     );
     setSelectedImage(null);
     pendingCaretRef.current = start;
+  }
+
+  function insertAfterImage(
+    token: DraggedImage,
+    markdown: string,
+  ) {
+    const next = normalizeMarkdownImageSpacing(
+      content.slice(0, token.end) + markdown + content.slice(token.end),
+    );
+    setContent(next);
+    const inserted = tokenizeMarkdownImages(next)
+      .filter((candidate) => candidate.type === "image")
+      .find(
+        (candidate) =>
+          candidate.start >= token.end && candidate.raw === markdown,
+      );
+    if (inserted) setSelectedImage(`${inserted.start}:${inserted.url}`);
+  }
+
+  function moveImage(token: DraggedImage, targetOffset: number) {
+    if (targetOffset >= token.start && targetOffset <= token.end) {
+      setDraggedImage(null);
+      setDropOffset(null);
+      return;
+    }
+    const withoutImage =
+      content.slice(0, token.start) + content.slice(token.end);
+    const adjustedOffset =
+      targetOffset > token.end
+        ? targetOffset - (token.end - token.start)
+        : targetOffset;
+    const next = normalizeMarkdownImageSpacing(
+      withoutImage.slice(0, adjustedOffset) +
+        token.raw +
+        withoutImage.slice(adjustedOffset),
+    );
+    const moved = tokenizeMarkdownImages(next)
+      .filter((candidate) => candidate.type === "image")
+      .reduce<DraggedImage | null>((closest, candidate) => {
+        if (candidate.url !== token.url) return closest;
+        if (!closest) return candidate;
+        return Math.abs(candidate.start - adjustedOffset) <
+          Math.abs(closest.start - adjustedOffset)
+          ? candidate
+          : closest;
+      }, null);
+    setContent(next);
+    setSelectedImage(moved ? `${moved.start}:${moved.url}` : null);
+    setDraggedImage(null);
+    setDropOffset(null);
+  }
+
+  function imageDropZone(offset: number, key: string) {
+    const active = draggedImage && dropOffset === offset;
+    return (
+      <div
+        key={key}
+        data-image-drop-offset={offset}
+        className={`relative transition-[height] ${
+          draggedImage ? "h-7" : "h-0"
+        }`}
+        onDragOver={(event) => {
+          if (!draggedImage) return;
+          event.preventDefault();
+          event.stopPropagation();
+          event.dataTransfer.dropEffect = "move";
+          if (dropOffset !== offset) setDropOffset(offset);
+        }}
+        onDrop={(event) => {
+          if (!draggedImage) return;
+          event.preventDefault();
+          event.stopPropagation();
+          moveImage(draggedImage, offset);
+        }}
+        aria-hidden="true"
+      >
+        {active ? (
+          <span className="absolute inset-x-0 top-1/2 block h-px bg-[var(--cardinal)] before:absolute before:-top-[3px] before:-left-1 before:size-[7px] before:rounded-full before:bg-[var(--cardinal)]" />
+        ) : null}
+      </div>
+    );
   }
 
   function hasFiles(event: React.DragEvent) {
@@ -479,72 +578,124 @@ export default function WritingEditor({
         {bodyMode === "edit" ? (
           <div>
             {bodyTokens.map((token, index) =>
-              token.type === "text" ? (
-                <textarea
-                  key={`text-${index}`}
-                  ref={registerBodySegment}
-                  rows={1}
-                  data-empty-document={content.length === 0}
-                  data-content-start={token.start}
-                  data-content-end={token.end}
-                  aria-label="Body"
-                  value={token.value}
-                  onFocus={(event) => {
-                    textareaRef.current = event.currentTarget;
-                    setSelectedImage(null);
-                  }}
-                  onChange={(event) => {
-                    const nextValue = event.target.value;
-                    setContent(
-                      (current) =>
-                        current.slice(0, token.start) +
-                        nextValue +
-                        current.slice(token.end),
-                    );
-                    requestAnimationFrame(() => growTextarea(event.target, 36));
-                  }}
-                  onPaste={onPaste}
-                  placeholder={content.length === 0 ? "Start writing…" : undefined}
-                  className="writing-editor-segment"
-                />
-              ) : (
-                <button
-                  key={`image-${index}`}
-                  type="button"
-                  onClick={(event) => {
-                    event.currentTarget.focus();
-                    setSelectedImage(`${token.start}:${token.url}`);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key !== "Backspace" && event.key !== "Delete") return;
-                    event.preventDefault();
-                    removeImage(token.start, token.end, token.url);
-                  }}
-                  className={`my-5 block w-full cursor-pointer border-2 bg-transparent p-1 text-left transition-colors ${
-                    selectedImage === `${token.start}:${token.url}`
-                      ? "border-[var(--cardinal)]"
-                      : "border-transparent hover:border-[var(--line-strong)]"
-                  }`}
-                  aria-label={`${token.alt || "Image"}. Press Backspace or Delete to remove.`}
-                >
-                  <img
-                    src={
-                      pendingImages.find((image) => image.url === token.url)
-                        ?.previewUrl ?? token.url
-                    }
-                    alt={token.alt}
-                    className="mx-auto block max-h-[70vh] max-w-full"
+              <Fragment key={`${token.type}-${index}`}>
+                {imageDropZone(token.start, `drop-${index}`)}
+                {token.type === "text" ? (
+                  <textarea
+                    ref={registerBodySegment}
+                    rows={1}
+                    data-empty-document={content.length === 0}
+                    data-content-start={token.start}
+                    data-content-end={token.end}
+                    aria-label="Body"
+                    value={token.value}
+                    onFocus={(event) => {
+                      textareaRef.current = event.currentTarget;
+                      setSelectedImage(null);
+                    }}
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+                      setContent(
+                        (current) =>
+                          current.slice(0, token.start) +
+                          nextValue +
+                          current.slice(token.end),
+                      );
+                      requestAnimationFrame(() => growTextarea(event.target, 36));
+                    }}
+                    onPaste={onPaste}
+                    placeholder={content.length === 0 ? "Start writing…" : undefined}
+                    className="writing-editor-segment"
                   />
-                  {selectedImage === `${token.start}:${token.url}` || token.alt ? (
-                    <span className="mt-2 block text-center font-sans text-[0.76rem] text-[var(--ink-4)]">
-                      {selectedImage === `${token.start}:${token.url}`
-                        ? "Press Backspace or Delete to remove"
-                        : token.alt}
-                    </span>
-                  ) : null}
-                </button>
-              ),
+                ) : (
+                  <button
+                    type="button"
+                    draggable
+                    onClick={(event) => {
+                      event.currentTarget.focus();
+                      setSelectedImage(`${token.start}:${token.url}`);
+                    }}
+                    onDragStart={(event) => {
+                      event.dataTransfer.effectAllowed = "move";
+                      event.dataTransfer.setData(
+                        "application/x-writing-image",
+                        token.raw,
+                      );
+                      event.dataTransfer.setData("text/plain", token.raw);
+                      setDraggedImage(token);
+                      setSelectedImage(`${token.start}:${token.url}`);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedImage(null);
+                      setDropOffset(null);
+                    }}
+                    onCopy={(event) => {
+                      event.preventDefault();
+                      event.clipboardData.setData("text/plain", token.raw);
+                      setStatus("Image copied.");
+                    }}
+                    onCut={(event) => {
+                      event.preventDefault();
+                      event.clipboardData.setData("text/plain", token.raw);
+                      removeImage(token.start, token.end, token.url);
+                      setStatus("Image cut.");
+                    }}
+                    onPaste={(event) => {
+                      const files = event.clipboardData.files;
+                      if (
+                        files?.length &&
+                        Array.from(files).some((file) =>
+                          file.type.startsWith("image/"),
+                        )
+                      ) {
+                        event.preventDefault();
+                        void addImages(files, {
+                          start: token.end,
+                          end: token.end,
+                        });
+                        return;
+                      }
+                      const markdown = event.clipboardData.getData("text/plain");
+                      if (!markdown) return;
+                      event.preventDefault();
+                      insertAfterImage(token, markdown);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Backspace" && event.key !== "Delete") {
+                        return;
+                      }
+                      event.preventDefault();
+                      removeImage(token.start, token.end, token.url);
+                    }}
+                    className={`my-5 block w-full cursor-grab border-2 bg-transparent p-1 text-left transition-colors active:cursor-grabbing ${
+                      selectedImage === `${token.start}:${token.url}`
+                        ? "border-[var(--cardinal)]"
+                        : "border-transparent hover:border-[var(--line-strong)]"
+                    }`}
+                    aria-label={`${token.alt || "Image"}. Drag to move, or use Copy, Cut, Paste, Backspace, or Delete.`}
+                  >
+                    <img
+                      src={
+                        pendingImages.find((image) => image.url === token.url)
+                          ?.previewUrl ?? token.url
+                      }
+                      alt={token.alt}
+                      draggable={false}
+                      className="mx-auto block max-h-[70vh] max-w-full"
+                    />
+                    {selectedImage === `${token.start}:${token.url}` ||
+                    token.alt ? (
+                      <span className="mt-2 block text-center font-sans text-[0.76rem] text-[var(--ink-4)]">
+                        {selectedImage === `${token.start}:${token.url}`
+                          ? "Drag to move · ⌘C copy · ⌘V paste · ⌘X cut · Backspace delete"
+                          : token.alt}
+                      </span>
+                    ) : null}
+                  </button>
+                )}
+              </Fragment>,
             )}
+            {imageDropZone(content.length, "drop-end")}
           </div>
         ) : content.trim() ? (
           <WritingMarkdown>{content}</WritingMarkdown>

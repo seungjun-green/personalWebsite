@@ -182,9 +182,9 @@ export default function WritingEditor({
     };
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     autosize(titleRef.current, 52);
-  }, [title]);
+  }, []);
 
   // Image operations split or join text segments. React can reuse a textarea
   // with the height of the old, much longer segment, creating a large blank
@@ -731,7 +731,19 @@ export default function WritingEditor({
         ref={titleRef}
         rows={1}
         value={title}
-        onChange={(e) => setTitle(e.target.value)}
+        onChange={(event) => {
+          const nextTitle = event.target.value;
+          const shrank = nextTitle.length < title.length;
+          const textarea = event.currentTarget;
+          setTitle(nextTitle);
+          requestAnimationFrame(() => {
+            if (shrank) {
+              resizeTextareaWithoutCollapsing(textarea, 52);
+            } else {
+              growTextarea(textarea, 52);
+            }
+          });
+        }}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.preventDefault();
@@ -772,13 +784,21 @@ export default function WritingEditor({
                     }}
                     onChange={(event) => {
                       const nextValue = event.target.value;
+                      const shrank = nextValue.length < token.value.length;
+                      const textarea = event.currentTarget;
                       setContent(
                         (current) =>
                           current.slice(0, token.start) +
                           nextValue +
                           current.slice(token.end),
                       );
-                      requestAnimationFrame(() => autosize(event.target, 36));
+                      requestAnimationFrame(() => {
+                        if (shrank) {
+                          resizeTextareaWithoutCollapsing(textarea, 36);
+                        } else {
+                          growTextarea(textarea, 36);
+                        }
+                      });
                     }}
                     onPaste={onPaste}
                     placeholder={content.length === 0 ? "Start writing…" : undefined}
@@ -915,6 +935,32 @@ function autosize(el: HTMLTextAreaElement | null, minHeight: number) {
   if (!el) return;
   el.style.height = "auto";
   el.style.height = `${Math.max(el.scrollHeight, minHeight)}px`;
+}
+
+function growTextarea(el: HTMLTextAreaElement, minHeight: number) {
+  const nextHeight = Math.max(el.scrollHeight, minHeight);
+  if (nextHeight > el.clientHeight) el.style.height = `${nextHeight}px`;
+}
+
+function resizeTextareaWithoutCollapsing(
+  el: HTMLTextAreaElement,
+  minHeight: number,
+) {
+  const measurement = el.cloneNode() as HTMLTextAreaElement;
+  measurement.value = el.value;
+  measurement.setAttribute("aria-hidden", "true");
+  measurement.tabIndex = -1;
+  measurement.style.position = "fixed";
+  measurement.style.left = "-10000px";
+  measurement.style.top = "0";
+  measurement.style.visibility = "hidden";
+  measurement.style.pointerEvents = "none";
+  measurement.style.width = `${el.getBoundingClientRect().width}px`;
+  measurement.style.height = "auto";
+  document.body.appendChild(measurement);
+  const nextHeight = Math.max(measurement.scrollHeight, minHeight);
+  measurement.remove();
+  el.style.height = `${nextHeight}px`;
 }
 
 function textareaCaretTop(textarea: HTMLTextAreaElement, offset: number) {

@@ -27,6 +27,8 @@ Every head has its own Q, while K and V are shared within groups of heads. For e
 
 ## MLA
 
+![screenshot-2026-09-10-at-8-51-39-pm](/writing/paper-summary/maq-gqa-mla/1789041102008-0-screenshot-2026-09-10-at-8-51-39-pm.png)
+
 Multi-Head Latent Attention (MLA) takes a different approach.
 
 Instead of simply reducing the number of K and V representations, MLA keeps the information needed to construct them in a compressed latent representation.
@@ -178,7 +180,7 @@ $$
 
 where \(L\) is the sequence length.
 
-### MLA
+## MLA
 
 In MLA, \(K\) can be written as:
 

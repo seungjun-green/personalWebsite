@@ -14,9 +14,14 @@ The main idea of MLA is to let every head to have its own K and V, but stores it
 In this post, MQA, GQA, and MLA will be explained.
 
 ## MQA
+
+![screenshot-2026-09-10-at-8-49-14-pm](/writing/paper-summary/maq-gqa-mla/1789040958465-0-screenshot-2026-09-10-at-8-49-14-pm.png)
+
 Multi-Query Attention means that every head has its own Q, while all heads share a single K and V.
 
 ## GQA
+
+![screenshot-2026-09-10-at-8-50-09-pm](/writing/paper-summary/maq-gqa-mla/1789041011857-0-screenshot-2026-09-10-at-8-50-09-pm.png)
 
 Every head has its own Q, while K and V are shared within groups of heads. For example, every 4 heads share one K and V pair. So if there are total 8 heads, there are being only 2Ks and 2 Vs.
 

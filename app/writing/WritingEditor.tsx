@@ -73,7 +73,11 @@ export default function WritingEditor({
   const [publishedPost, setPublishedPost] = useState<WritingPost | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [draggedImage, setDraggedImage] = useState<DraggedImage | null>(null);
+  // Character offset in `content` where the current drag would drop. Shared by
+  // external file drops and internal image drags so the same caret indicator
+  // renders in both cases.
   const [dropOffset, setDropOffset] = useState<number | null>(null);
+  const dragActive = dragging || draggedImage !== null;
 
   const slug = useMemo(() => slugify(title || post?.slug || "untitled"), [title, post?.slug]);
   const effectiveSlug = post?.slug ?? slug;
@@ -358,34 +362,69 @@ export default function WritingEditor({
   }
 
   function imageDropZone(offset: number, key: string) {
-    const active = draggedImage && dropOffset === offset;
+    const active = dragActive && dropOffset === offset;
     return (
       <div
         key={key}
         data-image-drop-offset={offset}
-        className={`relative transition-[height] ${
-          draggedImage ? "h-7" : "h-0"
-        }`}
+        className={`relative transition-[height] ${dragActive ? "h-7" : "h-0"}`}
         onDragOver={(event) => {
-          if (!draggedImage) return;
+          if (!dragActive) return;
           event.preventDefault();
           event.stopPropagation();
-          event.dataTransfer.dropEffect = "move";
+          event.dataTransfer.dropEffect = draggedImage ? "move" : "copy";
           if (dropOffset !== offset) setDropOffset(offset);
         }}
         onDrop={(event) => {
-          if (!draggedImage) return;
+          if (!dragActive) return;
           event.preventDefault();
           event.stopPropagation();
-          moveImage(draggedImage, offset);
+          if (draggedImage) {
+            moveImage(draggedImage, offset);
+          } else if (event.dataTransfer.files?.length) {
+            void addImages(event.dataTransfer.files, {
+              start: offset,
+              end: offset,
+            });
+          }
+          setDropOffset(null);
+          setDragging(false);
+          dragCount.current = 0;
         }}
         aria-hidden="true"
       >
         {active ? (
-          <span className="absolute inset-x-0 top-1/2 block h-px bg-[var(--cardinal)] before:absolute before:-top-[3px] before:-left-1 before:size-[7px] before:rounded-full before:bg-[var(--cardinal)]" />
+          <span className="pointer-events-none absolute inset-x-0 top-1/2 block h-px bg-[var(--cardinal)] before:absolute before:-top-[3px] before:-left-1 before:size-[7px] before:rounded-full before:bg-[var(--cardinal)]" />
         ) : null}
       </div>
     );
+  }
+
+  // While a drag is active anywhere in the body, keep the caret indicator
+  // pinned to the drop-zone slot closest to the pointer. This works even when
+  // the pointer is over a textarea/image (which don't fire our own dragover
+  // handlers) so the user always sees where the image will land.
+  function updateDropOffsetFromPointer(clientY: number) {
+    const zones = bodyRootRef.current?.querySelectorAll<HTMLElement>(
+      "[data-image-drop-offset]",
+    );
+    if (!zones?.length) return;
+    let nearest: HTMLElement | null = null;
+    let nearestDist = Number.POSITIVE_INFINITY;
+    for (const zone of zones) {
+      const rect = zone.getBoundingClientRect();
+      const mid = (rect.top + rect.bottom) / 2;
+      const dist = Math.abs(mid - clientY);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearest = zone;
+      }
+    }
+    if (!nearest) return;
+    const nextOffset = Number(nearest.dataset.imageDropOffset);
+    if (!Number.isNaN(nextOffset) && dropOffset !== nextOffset) {
+      setDropOffset(nextOffset);
+    }
   }
 
   function hasFiles(event: React.DragEvent) {
@@ -401,10 +440,11 @@ export default function WritingEditor({
   }
 
   function onDragOver(event: React.DragEvent) {
-    if (!hasFiles(event)) return;
+    if (!hasFiles(event) && !draggedImage) return;
     event.preventDefault();
     event.stopPropagation();
-    event.dataTransfer.dropEffect = "copy";
+    event.dataTransfer.dropEffect = draggedImage ? "move" : "copy";
+    updateDropOffsetFromPointer(event.clientY);
   }
 
   function onDragLeave(event: React.DragEvent) {
@@ -412,7 +452,10 @@ export default function WritingEditor({
     event.preventDefault();
     event.stopPropagation();
     dragCount.current = Math.max(0, dragCount.current - 1);
-    if (dragCount.current === 0) setDragging(false);
+    if (dragCount.current === 0) {
+      setDragging(false);
+      setDropOffset(null);
+    }
   }
 
   function onDrop(event: React.DragEvent) {
@@ -421,8 +464,13 @@ export default function WritingEditor({
     dragCount.current = 0;
     setDragging(false);
     if (event.dataTransfer.files?.length) {
-      void addImages(event.dataTransfer.files);
+      const insertion =
+        dropOffset !== null
+          ? { start: dropOffset, end: dropOffset }
+          : undefined;
+      void addImages(event.dataTransfer.files, insertion);
     }
+    setDropOffset(null);
   }
 
   function onPaste(event: React.ClipboardEvent<HTMLTextAreaElement>) {

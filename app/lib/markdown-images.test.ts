@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   markdownImageUrls,
   normalizeMarkdownImageSpacing,
+  removeMarkdownImage,
   tokenizeMarkdownImages,
 } from "./markdown-images";
 
@@ -50,5 +51,31 @@ describe("Markdown images", () => {
     const content =
       "Text\n\n![Chart](/writing/notes/post/chart.png)\n\n## Next section";
     expect(normalizeMarkdownImageSpacing(content)).toBe(content);
+  });
+
+  it("collapses accumulated blank lines around images", () => {
+    expect(
+      normalizeMarkdownImageSpacing(
+        "Before\n\n\n\n\n![Chart](/chart.png)\n\n\n\nAfter",
+      ),
+    ).toBe("Before\n\n![Chart](/chart.png)\n\nAfter");
+  });
+
+  it("removes an image together with its block separators", () => {
+    expect(
+      removeMarkdownImage(
+        "Before\n\n![Chart](/chart.png)\n\nAfter",
+        8,
+        29,
+      ).content,
+    ).toBe("Before\n\nAfter");
+  });
+
+  it("maps a later insertion offset after removing an image block", () => {
+    const content = "Before\n\n![Chart](/chart.png)\n\nAfter";
+    expect(removeMarkdownImage(content, 8, 29, content.length)).toEqual({
+      content: "Before\n\nAfter",
+      offset: 13,
+    });
   });
 });

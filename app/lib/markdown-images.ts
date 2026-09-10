@@ -64,10 +64,10 @@ export function normalizeMarkdownImageSpacing(content: string) {
 
   for (const token of tokens) {
     if (token.type === "image") {
-      if (normalized && !normalized.endsWith("\n\n")) {
-        normalized = normalized.replace(/[ \t]+$/, "");
-        normalized += normalized.endsWith("\n") ? "\n" : "\n\n";
-      }
+      normalized = normalized
+        .replace(/[ \t]+$/, "")
+        .replace(/(?:\n[ \t]*)+$/, "");
+      if (normalized) normalized += "\n\n";
       normalized += token.raw;
       followsImage = true;
       continue;
@@ -84,4 +84,37 @@ export function normalizeMarkdownImageSpacing(content: string) {
   }
 
   return normalized;
+}
+
+export function removeMarkdownImage(
+  content: string,
+  start: number,
+  end: number,
+  targetOffset = start,
+) {
+  const rawBefore = content.slice(0, start);
+  const rawAfter = content.slice(end);
+  const before = rawBefore
+    .replace(/[ \t]+$/, "")
+    .replace(/(?:\n[ \t]*)+$/, "");
+  const after = rawAfter.replace(/^(?:[ \t]*\n)+/, "");
+  const separator = before && after ? "\n\n" : "";
+
+  let mappedOffset: number;
+  if (targetOffset <= start) {
+    mappedOffset = Math.min(targetOffset, before.length);
+  } else {
+    const afterOffset = targetOffset - end;
+    const removedAfter = rawAfter.length - after.length;
+    mappedOffset =
+      before.length +
+      separator.length +
+      Math.max(0, afterOffset - removedAfter);
+  }
+
+  const next = before + separator + after;
+  return {
+    content: next,
+    offset: Math.min(Math.max(mappedOffset, 0), next.length),
+  };
 }

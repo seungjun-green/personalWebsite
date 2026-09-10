@@ -15,6 +15,7 @@ import {
 import {
   type MarkdownImageToken,
   normalizeMarkdownImageSpacing,
+  removeMarkdownImage,
   tokenizeMarkdownImages,
 } from "../lib/markdown-images";
 import type { WritingGroup, WritingPost } from "../lib/writing";
@@ -235,7 +236,14 @@ export default function WritingEditor({
             previousSlug: post?.slug,
           }),
         );
-        for (const image of pendingImages) {
+        const referencedImages = new Set(
+          tokenizeMarkdownImages(normalizedContent)
+            .filter((token) => token.type === "image")
+            .map((token) => token.url),
+        );
+        for (const image of pendingImages.filter((image) =>
+          referencedImages.has(image.url),
+        )) {
           form.append("images", image.file, image.filename);
         }
         const response = await fetch("/api/writing/admin/post", {
@@ -310,6 +318,7 @@ export default function WritingEditor({
 
     setStatus(images.length > 1 ? "Uploading images…" : "Uploading image…");
     try {
+      let lastInsertedUrl = "";
       for (const file of images) {
         const form = new FormData();
         form.set("file", file);
@@ -356,14 +365,15 @@ export default function WritingEditor({
         const alt = slugify(file.name.replace(/\.[^.]+$/, "") || "image");
         const snippet = `\n\n![${alt}](${imageUrl})\n\n`;
         next = next.slice(0, start) + snippet + next.slice(end);
+        lastInsertedUrl = imageUrl;
         start += snippet.length;
         end = start;
       }
       next = normalizeMarkdownImageSpacing(next);
-      const lastImage = tokenizeMarkdownImages(next)
+      const insertedImage = tokenizeMarkdownImages(next)
         .filter((token) => token.type === "image")
-        .at(-1);
-      pendingCaretRef.current = lastImage?.end ?? next.length;
+        .findLast((token) => token.url === lastInsertedUrl);
+      pendingCaretRef.current = insertedImage?.end ?? next.length;
       pendingDropTopRef.current = null;
       setContent(next);
       setBodyLayoutVersion((current) => current + 1);
@@ -395,26 +405,11 @@ export default function WritingEditor({
         contentOffset: start,
       };
     }
-    setContent((current) =>
-      normalizeMarkdownImageSpacing(
-        current.slice(0, start) + current.slice(end),
-      ),
-    );
+    const removed = removeMarkdownImage(content, start, end);
+    setContent(removed.content);
     setBodyLayoutVersion((current) => current + 1);
-    setPendingImages((current) =>
-      current.filter((image) => image.url !== url),
-    );
-    setImagePreviews((current) => {
-      const previewUrl = current[url];
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      delete imagePreviewsRef.current[url];
-      if (!previewUrl) return current;
-      const next = { ...current };
-      delete next[url];
-      return next;
-    });
     setSelectedImage(null);
-    pendingCaretRef.current = start;
+    pendingCaretRef.current = removed.offset;
   }
 
   function insertAfterImage(
@@ -444,16 +439,17 @@ export default function WritingEditor({
       setPointerY(null);
       return;
     }
-    const withoutImage =
-      content.slice(0, token.start) + content.slice(token.end);
-    const adjustedOffset =
-      targetOffset > token.end
-        ? targetOffset - (token.end - token.start)
-        : targetOffset;
+    const removed = removeMarkdownImage(
+      content,
+      token.start,
+      token.end,
+      targetOffset,
+    );
+    const adjustedOffset = removed.offset;
     const next = normalizeMarkdownImageSpacing(
-      withoutImage.slice(0, adjustedOffset) +
+      removed.content.slice(0, adjustedOffset) +
         token.raw +
-        withoutImage.slice(adjustedOffset),
+        removed.content.slice(adjustedOffset),
     );
     const moved = tokenizeMarkdownImages(next)
       .filter((candidate) => candidate.type === "image")
@@ -516,21 +512,7 @@ export default function WritingEditor({
 
       if (seg.tagName === "TEXTAREA") {
         const textarea = seg as HTMLTextAreaElement;
-        const style = getComputedStyle(textarea);
-        const lineHeight =
-          parseFloat(style.lineHeight) ||
-          parseFloat(style.fontSize) * 1.5 ||
-          24;
-        const paddingTop = parseFloat(style.paddingTop) || 0;
-        const yInside = Math.max(0, clientY - rect.top - paddingTop);
-        const lineIndex = Math.floor(yInside / lineHeight);
-        const lines = textarea.value.split("\n");
-        let localOffset = 0;
-        for (let l = 0; l < lineIndex && l < lines.length; l += 1) {
-          localOffset += lines[l].length + 1;
-        }
-        localOffset = Math.min(localOffset, end - start);
-        return start + localOffset;
+        return start + textareaDropOffsetAt(textarea, clientY);
       }
 
       // Image button (non-textarea): snap to the closer of start / end.
@@ -796,7 +778,7 @@ export default function WritingEditor({
                           nextValue +
                           current.slice(token.end),
                       );
-                      requestAnimationFrame(() => growTextarea(event.target, 36));
+                      requestAnimationFrame(() => autosize(event.target, 36));
                     }}
                     onPaste={onPaste}
                     placeholder={content.length === 0 ? "Start writing…" : undefined}
@@ -935,11 +917,6 @@ function autosize(el: HTMLTextAreaElement | null, minHeight: number) {
   el.style.height = `${Math.max(el.scrollHeight, minHeight)}px`;
 }
 
-function growTextarea(el: HTMLTextAreaElement, minHeight: number) {
-  const nextHeight = Math.max(el.scrollHeight, minHeight);
-  if (nextHeight > el.clientHeight) el.style.height = `${nextHeight}px`;
-}
-
 function textareaCaretTop(textarea: HTMLTextAreaElement, offset: number) {
   const style = getComputedStyle(textarea);
   const mirror = document.createElement("div");
@@ -966,6 +943,34 @@ function textareaCaretTop(textarea: HTMLTextAreaElement, offset: number) {
     marker.getBoundingClientRect().top - mirror.getBoundingClientRect().top;
   mirror.remove();
   return top;
+}
+
+function textareaDropOffsetAt(textarea: HTMLTextAreaElement, clientY: number) {
+  const rect = textarea.getBoundingClientRect();
+  const style = getComputedStyle(textarea);
+  const lineHeight =
+    parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.5 || 24;
+  const targetTop = Math.max(0, clientY - rect.top - lineHeight / 2);
+  let low = 0;
+  let high = textarea.value.length;
+
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (textareaCaretTop(textarea, middle) < targetTop) low = middle + 1;
+    else high = middle;
+  }
+
+  const approximate = low;
+  const lineStart = textarea.value.lastIndexOf("\n", approximate - 1) + 1;
+  const nextBreak = textarea.value.indexOf("\n", approximate);
+  const lineEnd = nextBreak === -1 ? textarea.value.length : nextBreak + 1;
+  const startTop = textareaCaretTop(textarea, lineStart);
+  const endTop =
+    lineEnd === textarea.value.length
+      ? textareaCaretTop(textarea, lineEnd) + lineHeight
+      : textareaCaretTop(textarea, lineEnd);
+
+  return clientY - rect.top < (startTop + endTop) / 2 ? lineStart : lineEnd;
 }
 
 function githubRawImageUrl(url: string) {

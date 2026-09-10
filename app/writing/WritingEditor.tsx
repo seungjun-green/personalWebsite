@@ -44,6 +44,8 @@ const PUBLISHABLE_IMAGE_TYPES = new Set([
   "image/gif",
   "image/webp",
 ]);
+const PUBLISHABLE_IMAGE_EXTENSION = /\.(?:png|jpe?g|gif|webp)$/i;
+const IMAGE_EXTENSION = /\.(?:png|jpe?g|gif|webp|svg)$/i;
 
 export default function WritingEditor({
   groups,
@@ -57,6 +59,8 @@ export default function WritingEditor({
   const bodyRootRef = useRef<HTMLDivElement>(null);
   const pendingCaretRef = useRef<number | null>(null);
   const pendingImagesRef = useRef<PendingImage[]>([]);
+  const draggedImageRef = useRef<DraggedImage | null>(null);
+  const dropOffsetRef = useRef<number | null>(null);
   const [title, setTitle] = useState(post?.title ?? "");
   const [groupName, setGroupName] = useState(post?.groupName ?? "");
   const [content, setContent] = useState(() =>
@@ -73,10 +77,6 @@ export default function WritingEditor({
   const [publishedPost, setPublishedPost] = useState<WritingPost | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [draggedImage, setDraggedImage] = useState<DraggedImage | null>(null);
-  // Character offset in `content` where the current drag would drop. Shared by
-  // external file drops and internal image drags so the same caret indicator
-  // renders in both cases.
-  const [dropOffset, setDropOffset] = useState<number | null>(null);
   // Live pointer Y inside the body root (px) so the drop caret follows the
   // cursor continuously instead of snapping only to discrete drop zones.
   const [pointerY, setPointerY] = useState<number | null>(null);
@@ -224,9 +224,7 @@ export default function WritingEditor({
     insertion?: { start: number; end: number },
   ) {
     const images = Array.from(files).filter(
-      (file) =>
-        file.type.startsWith("image/") &&
-        (mode === "local" || PUBLISHABLE_IMAGE_TYPES.has(file.type)),
+      (file) => isSupportedImageFile(file, mode),
     );
     if (images.length === 0) {
       setStatus(
@@ -333,8 +331,9 @@ export default function WritingEditor({
 
   function moveImage(token: DraggedImage, targetOffset: number) {
     if (targetOffset >= token.start && targetOffset <= token.end) {
+      draggedImageRef.current = null;
+      dropOffsetRef.current = null;
       setDraggedImage(null);
-      setDropOffset(null);
       setPointerY(null);
       return;
     }
@@ -361,8 +360,9 @@ export default function WritingEditor({
       }, null);
     setContent(next);
     setSelectedImage(moved ? `${moved.start}:${moved.url}` : null);
+    draggedImageRef.current = null;
+    dropOffsetRef.current = null;
     setDraggedImage(null);
-    setDropOffset(null);
     setPointerY(null);
   }
 
@@ -440,7 +440,7 @@ export default function WritingEditor({
     const localY = clientY - rootRect.top;
     setPointerY((current) => (current === localY ? current : localY));
     const offset = computeDropOffsetAt(clientY);
-    setDropOffset((current) => (current === offset ? current : offset));
+    dropOffsetRef.current = offset;
   }
 
   function hasFiles(event: React.DragEvent) {
@@ -451,15 +451,17 @@ export default function WritingEditor({
     if (!hasFiles(event)) return;
     event.preventDefault();
     event.stopPropagation();
+    draggedImageRef.current = null;
     dragCount.current += 1;
     setDragging(true);
   }
 
   function onDragOver(event: React.DragEvent) {
-    if (!hasFiles(event) && !draggedImage) return;
+    const internalImage = draggedImageRef.current;
+    if (!hasFiles(event) && !internalImage) return;
     event.preventDefault();
     event.stopPropagation();
-    event.dataTransfer.dropEffect = draggedImage ? "move" : "copy";
+    event.dataTransfer.dropEffect = internalImage ? "move" : "copy";
     updateDropOffsetFromPointer(event.clientY);
   }
 
@@ -470,7 +472,7 @@ export default function WritingEditor({
     dragCount.current = Math.max(0, dragCount.current - 1);
     if (dragCount.current === 0) {
       setDragging(false);
-      setDropOffset(null);
+      dropOffsetRef.current = null;
       setPointerY(null);
     }
   }
@@ -482,15 +484,16 @@ export default function WritingEditor({
     setDragging(false);
 
     const target =
-      dropOffset ?? computeDropOffsetAt(event.clientY) ?? content.length;
+      dropOffsetRef.current ?? computeDropOffsetAt(event.clientY);
+    const internalImage = draggedImageRef.current;
 
-    if (draggedImage) {
-      moveImage(draggedImage, target);
+    if (internalImage) {
+      moveImage(internalImage, target);
     } else if (event.dataTransfer.files?.length) {
       void addImages(event.dataTransfer.files, { start: target, end: target });
     }
 
-    setDropOffset(null);
+    dropOffsetRef.current = null;
     setPointerY(null);
   }
 
@@ -680,6 +683,8 @@ export default function WritingEditor({
                   <button
                     type="button"
                     draggable
+                    data-content-start={token.start}
+                    data-content-end={token.end}
                     onClick={(event) => {
                       event.currentTarget.focus();
                       setSelectedImage(`${token.start}:${token.url}`);
@@ -691,12 +696,14 @@ export default function WritingEditor({
                         token.raw,
                       );
                       event.dataTransfer.setData("text/plain", token.raw);
+                      draggedImageRef.current = token;
                       setDraggedImage(token);
                       setSelectedImage(`${token.start}:${token.url}`);
                     }}
                     onDragEnd={() => {
+                      draggedImageRef.current = null;
+                      dropOffsetRef.current = null;
                       setDraggedImage(null);
-                      setDropOffset(null);
                       setPointerY(null);
                     }}
                     onCopy={(event) => {
@@ -802,6 +809,16 @@ function autosize(el: HTMLTextAreaElement | null, minHeight: number) {
 function growTextarea(el: HTMLTextAreaElement, minHeight: number) {
   const nextHeight = Math.max(el.scrollHeight, minHeight);
   if (nextHeight > el.clientHeight) el.style.height = `${nextHeight}px`;
+}
+
+function isSupportedImageFile(file: File, mode: "local" | "github") {
+  if (mode === "github") {
+    return (
+      PUBLISHABLE_IMAGE_TYPES.has(file.type.toLowerCase()) ||
+      PUBLISHABLE_IMAGE_EXTENSION.test(file.name)
+    );
+  }
+  return file.type.startsWith("image/") || IMAGE_EXTENSION.test(file.name);
 }
 
 function fileExtension(file: File) {

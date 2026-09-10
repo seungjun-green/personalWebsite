@@ -28,7 +28,10 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Image file is required." }, { status: 400 });
   }
-  if (!file.type.startsWith("image/")) {
+  if (
+    !file.type.startsWith("image/") &&
+    !/\.(?:png|jpe?g|gif|webp|svg)$/i.test(file.name)
+  ) {
     return NextResponse.json({ error: "Only image files can be dropped." }, { status: 400 });
   }
   if (!groupName || !title) {

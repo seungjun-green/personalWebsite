@@ -85,39 +85,6 @@ export default function WritingEditor({
   const slug = useMemo(() => slugify(title || post?.slug || "untitled"), [title, post?.slug]);
   const effectiveSlug = post?.slug ?? slug;
   const bodyTokens = useMemo(() => tokenizeMarkdownImages(content), [content]);
-  // Split each text token at paragraph breaks (\n\n) so every paragraph is its
-  // own block. This gives the drag caret many drop offsets to snap to, even
-  // in a post that has no images at all.
-  const bodyBlocks = useMemo(() => {
-    const blocks: MarkdownImageToken[] = [];
-    for (const token of bodyTokens) {
-      if (token.type !== "text") {
-        blocks.push(token);
-        continue;
-      }
-      const source = token.value;
-      const separator = /\n{2,}/g;
-      let cursor = 0;
-      let match: RegExpExecArray | null;
-      while ((match = separator.exec(source)) !== null) {
-        const cut = match.index + match[0].length;
-        blocks.push({
-          type: "text",
-          value: source.slice(cursor, cut),
-          start: token.start + cursor,
-          end: token.start + cut,
-        });
-        cursor = cut;
-      }
-      blocks.push({
-        type: "text",
-        value: source.slice(cursor),
-        start: token.start + cursor,
-        end: token.end,
-      });
-    }
-    return blocks;
-  }, [bodyTokens]);
   const groupOptions = useMemo(
     () => Array.from(new Set(groups.map((g) => g.name))),
     [groups],
@@ -182,7 +149,7 @@ export default function WritingEditor({
     target.setSelectionRange(localCaret, localCaret);
     textareaRef.current = target;
     pendingCaretRef.current = null;
-  }, [bodyMode, bodyBlocks]);
+  }, [bodyMode, bodyTokens]);
 
   async function save() {
     setSaving(true);
@@ -399,74 +366,81 @@ export default function WritingEditor({
     setPointerY(null);
   }
 
-  function imageDropZone(offset: number, key: string) {
+  // Between-block spacer that widens slightly during a drag so the caret has
+  // room to visualize an insertion between two blocks. All drop routing goes
+  // through the form-level onDrop / onDragOver so we don't need per-zone
+  // handlers (which used to swallow drops via stopPropagation).
+  function imageDropZone(_offset: number, key: string) {
     return (
       <div
         key={key}
-        data-image-drop-offset={offset}
-        className={`relative transition-[height] ${dragActive ? "h-6" : "h-0"}`}
-        onDragOver={(event) => {
-          if (!dragActive) return;
-          event.preventDefault();
-          event.stopPropagation();
-          event.dataTransfer.dropEffect = draggedImage ? "move" : "copy";
-          updateDropOffsetFromPointer(event.clientY);
-        }}
-        onDrop={(event) => {
-          if (!dragActive) return;
-          event.preventDefault();
-          event.stopPropagation();
-          if (draggedImage) {
-            moveImage(draggedImage, offset);
-          } else if (event.dataTransfer.files?.length) {
-            void addImages(event.dataTransfer.files, {
-              start: offset,
-              end: offset,
-            });
-          }
-          setDropOffset(null);
-          setPointerY(null);
-          setDragging(false);
-          dragCount.current = 0;
-        }}
         aria-hidden="true"
+        className={`pointer-events-none transition-[height] ${
+          dragActive ? "h-4" : "h-0"
+        }`}
       />
     );
   }
 
-  // While a drag is active, track the pointer Y relative to the body root and
-  // keep the drop offset snapped to the closest drop-zone slot. Both the
-  // floating caret (pointerY) and the offset (dropOffset) update on every
-  // dragover so the caret follows the mouse smoothly.
+  // Given a pointer Y (viewport coords), compute the character offset in
+  // `content` where an image should drop. Walks the rendered body segments,
+  // and inside a text-segment textarea does line-level arithmetic so the
+  // offset lands right between paragraphs / lines instead of just at
+  // block boundaries.
+  function computeDropOffsetAt(clientY: number): number {
+    const root = bodyRootRef.current;
+    if (!root) return content.length;
+    const segments = Array.from(
+      root.querySelectorAll<HTMLElement>("[data-content-start]"),
+    );
+    if (!segments.length) return content.length;
+
+    for (let index = 0; index < segments.length; index += 1) {
+      const seg = segments[index];
+      const rect = seg.getBoundingClientRect();
+      const start = Number(seg.dataset.contentStart);
+      const end = Number(seg.dataset.contentEnd);
+
+      if (clientY < rect.top) {
+        return start;
+      }
+      if (clientY > rect.bottom) continue;
+
+      if (seg.tagName === "TEXTAREA") {
+        const textarea = seg as HTMLTextAreaElement;
+        const style = getComputedStyle(textarea);
+        const lineHeight =
+          parseFloat(style.lineHeight) ||
+          parseFloat(style.fontSize) * 1.5 ||
+          24;
+        const paddingTop = parseFloat(style.paddingTop) || 0;
+        const yInside = Math.max(0, clientY - rect.top - paddingTop);
+        const lineIndex = Math.floor(yInside / lineHeight);
+        const lines = textarea.value.split("\n");
+        let localOffset = 0;
+        for (let l = 0; l < lineIndex && l < lines.length; l += 1) {
+          localOffset += lines[l].length + 1;
+        }
+        localOffset = Math.min(localOffset, end - start);
+        return start + localOffset;
+      }
+
+      // Image button (non-textarea): snap to the closer of start / end.
+      const mid = (rect.top + rect.bottom) / 2;
+      return clientY < mid ? start : end;
+    }
+
+    return Number(segments[segments.length - 1].dataset.contentEnd);
+  }
+
   function updateDropOffsetFromPointer(clientY: number) {
     const root = bodyRootRef.current;
     if (!root) return;
     const rootRect = root.getBoundingClientRect();
     const localY = clientY - rootRect.top;
     setPointerY((current) => (current === localY ? current : localY));
-
-    const zones = root.querySelectorAll<HTMLElement>(
-      "[data-image-drop-offset]",
-    );
-    if (!zones.length) return;
-    let nearest: HTMLElement | null = null;
-    let nearestDist = Number.POSITIVE_INFINITY;
-    for (const zone of zones) {
-      const rect = zone.getBoundingClientRect();
-      const mid = (rect.top + rect.bottom) / 2;
-      const dist = Math.abs(mid - clientY);
-      if (dist < nearestDist) {
-        nearestDist = dist;
-        nearest = zone;
-      }
-    }
-    if (!nearest) return;
-    const nextOffset = Number(nearest.dataset.imageDropOffset);
-    if (!Number.isNaN(nextOffset)) {
-      setDropOffset((current) =>
-        current === nextOffset ? current : nextOffset,
-      );
-    }
+    const offset = computeDropOffsetAt(clientY);
+    setDropOffset((current) => (current === offset ? current : offset));
   }
 
   function hasFiles(event: React.DragEvent) {
@@ -506,13 +480,16 @@ export default function WritingEditor({
     event.stopPropagation();
     dragCount.current = 0;
     setDragging(false);
-    if (event.dataTransfer.files?.length) {
-      const insertion =
-        dropOffset !== null
-          ? { start: dropOffset, end: dropOffset }
-          : undefined;
-      void addImages(event.dataTransfer.files, insertion);
+
+    const target =
+      dropOffset ?? computeDropOffsetAt(event.clientY) ?? content.length;
+
+    if (draggedImage) {
+      moveImage(draggedImage, target);
+    } else if (event.dataTransfer.files?.length) {
+      void addImages(event.dataTransfer.files, { start: target, end: target });
     }
+
     setDropOffset(null);
     setPointerY(null);
   }
@@ -669,7 +646,7 @@ export default function WritingEditor({
       <div ref={bodyRootRef} className="relative mt-8 min-h-[62vh]">
         {bodyMode === "edit" ? (
           <div>
-            {bodyBlocks.map((token, index) =>
+            {bodyTokens.map((token, index) =>
               <Fragment key={`${token.type}-${index}-${token.start}`}>
                 {imageDropZone(token.start, `drop-${index}`)}
                 {token.type === "text" ? (

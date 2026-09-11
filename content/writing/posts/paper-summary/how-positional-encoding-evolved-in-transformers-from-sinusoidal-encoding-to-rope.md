@@ -397,3 +397,8 @@ The value of $\theta_i$, degrades fast as $i$ increases, as a result fornt part 
 **Rear Part (Low Frequencies) = Meter & Kilometer Markings**
 
 - The dimensions toward the end rotate very, very slowly. A change in position from $m=5$ to $m=6$ causes almost no change in their rotation. It takes a large jump, like from $m=5$ to $m=105$, to see a meaningful angular change.
+
+![image](/writing/paper-summary/how-positional-encoding-evolved-in-transformers-from-sinusoidal-encoding-to-rope/1789094012984-0-image.png)
+
+![image](/writing/paper-summary/how-positional-encoding-evolved-in-transformers-from-sinusoidal-encoding-to-rope/1789094020671-0-image.png)
+

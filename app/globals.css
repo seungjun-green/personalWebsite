@@ -188,6 +188,14 @@ a.writing-post-link:hover {
   outline: none;
 }
 
+.writing-editor-markdown {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+  font-size: 0.96rem;
+  line-height: 1.7;
+}
+
 .writing-body {
   color: var(--ink-2);
   font-family:

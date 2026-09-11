@@ -137,14 +137,18 @@ describe("WritingEditor", () => {
     });
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /clipboard-image/i })).toBeTruthy(),
+      expect(body.value).toMatch(
+        /^Before\n\n!\[clipboard-image\]\(\/writing\/notes\/images\/\d+-0-clipboard-image\.png\)\n\nAfter$/,
+      ),
     );
-    expect(
-      screen
-        .getAllByRole("textbox", { name: "Body" })
-        .map((element) => (element as HTMLTextAreaElement).value)
-        .join(""),
-    ).toBe("Before\n\n\n\nAfter");
+    expect(screen.queryByRole("img", { name: "clipboard-image" })).toBeNull();
+    expect(window.scrollBy).not.toHaveBeenCalled();
+    expect(document.querySelector("form")?.getAttribute("style")).toContain(
+      "overflow-anchor: none",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+    expect(screen.getByRole("img", { name: "clipboard-image" })).toBeTruthy();
   });
 
   it("accepts a file exposed through drag items and inserts it at the drop point", async () => {
@@ -155,20 +159,7 @@ describe("WritingEditor", () => {
     await user.type(screen.getByRole("textbox", { name: "Title" }), "Drag image");
     const body = screen.getByRole("textbox", { name: "Body" }) as HTMLTextAreaElement;
     await user.type(body, "Existing text");
-    Object.defineProperty(body, "getBoundingClientRect", {
-      configurable: true,
-      value: () => ({
-        top: 100,
-        bottom: 200,
-        left: 0,
-        right: 600,
-        width: 600,
-        height: 100,
-        x: 0,
-        y: 100,
-        toJSON: () => ({}),
-      }),
-    });
+    body.setSelectionRange(0, 0);
     const file = new File(
       [new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])],
       "dropped-image",
@@ -190,13 +181,11 @@ describe("WritingEditor", () => {
     fireEvent(body, drop);
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: /dropped-image/i })).toBeTruthy(),
+      expect(body.value).toMatch(
+        /^!\[dropped-image\]\(\/writing\/notes\/drag-image\/\d+-0-dropped-image\.png\)\n\nExisting text$/,
+      ),
     );
-    expect(
-      screen
-        .getAllByRole("textbox", { name: "Body" })
-        .map((element) => (element as HTMLTextAreaElement).value)
-        .join(""),
-    ).toBe("\n\nExisting text");
+    expect(screen.queryByRole("img", { name: "dropped-image" })).toBeNull();
+    expect(window.scrollBy).not.toHaveBeenCalled();
   });
 });

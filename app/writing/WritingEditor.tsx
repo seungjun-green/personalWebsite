@@ -1,10 +1,8 @@
 "use client";
-/* eslint-disable @next/next/no-img-element */
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Fragment,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -13,9 +11,7 @@ import {
   useState,
 } from "react";
 import {
-  type MarkdownImageToken,
   normalizeMarkdownImageSpacing,
-  removeMarkdownImage,
   tokenizeMarkdownImages,
 } from "../lib/markdown-images";
 import type { WritingGroup, WritingPost } from "../lib/writing";
@@ -27,12 +23,9 @@ import {
   autosizeTextarea,
   droppedFiles,
   fileExtension,
-  githubRawImageUrl,
   growTextarea,
   resizeTextareaWithoutCollapsing,
   supportedImageFiles,
-  textareaCaretTop,
-  textareaDropOffsetAt,
 } from "./writing-editor-utils";
 
 type Props = {
@@ -48,12 +41,6 @@ type PendingImage = {
   url: string;
 };
 
-type DraggedImage = Extract<MarkdownImageToken, { type: "image" }>;
-
-type ViewportAnchor =
-  | { top: number; imageUrl: string }
-  | { top: number; contentOffset: number };
-
 export default function WritingEditor({
   groups,
   post,
@@ -63,13 +50,8 @@ export default function WritingEditor({
   const router = useRouter();
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const bodyRootRef = useRef<HTMLDivElement>(null);
   const pendingCaretRef = useRef<number | null>(null);
   const imagePreviewsRef = useRef<Record<string, string>>({});
-  const draggedImageRef = useRef<DraggedImage | null>(null);
-  const dropOffsetRef = useRef<number | null>(null);
-  const pendingDropTopRef = useRef<number | null>(null);
-  const pendingViewportAnchorRef = useRef<ViewportAnchor | null>(null);
   const operationInFlightRef = useRef(false);
   const [title, setTitle] = useState(post?.title ?? "");
   const [groupName, setGroupName] = useState(post?.groupName ?? "");
@@ -84,21 +66,13 @@ export default function WritingEditor({
   const [bodyMode, setBodyMode] = useState<"edit" | "preview">("edit");
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
-  const [bodyLayoutVersion, setBodyLayoutVersion] = useState(0);
   const [repositoryHead, setRepositoryHead] = useState(headSha);
   const [commitUrl, setCommitUrl] = useState("");
   const [publishedPost, setPublishedPost] = useState<WritingPost | null>(null);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [draggedImage, setDraggedImage] = useState<DraggedImage | null>(null);
-  // Live pointer Y inside the body root (px) so the drop caret follows the
-  // cursor continuously instead of snapping only to discrete drop zones.
-  const [pointerY, setPointerY] = useState<number | null>(null);
-  const dragActive = dragging || draggedImage !== null;
   const busy = saving || uploading;
 
   const slug = useMemo(() => slugify(title || post?.slug || "untitled"), [title, post?.slug]);
   const effectiveSlug = post?.slug ?? slug;
-  const bodyTokens = useMemo(() => tokenizeMarkdownImages(content), [content]);
   const groupOptions = useMemo(
     () => Array.from(new Set(groups.map((g) => g.name))),
     [groups],
@@ -109,70 +83,23 @@ export default function WritingEditor({
     if (post && groupName.trim() === post.groupName) return post.groupId;
     return undefined;
   }, [groupName, groups, post]);
-  const registerBodySegment = useCallback((element: HTMLTextAreaElement | null) => {
+  const registerBodyTextarea = useCallback((element: HTMLTextAreaElement | null) => {
     if (!element) return;
-    autosizeTextarea(element, element.dataset.emptyDocument === "true" ? 420 : 36);
-    if (!textareaRef.current || !textareaRef.current.isConnected) {
-      textareaRef.current = element;
-    }
+    textareaRef.current = element;
+    autosizeTextarea(element, 420);
   }, []);
 
   function restoreCaretWithoutScrolling() {
     const caret = pendingCaretRef.current;
     if (caret === null) return;
-    const segments = bodyRootRef.current?.querySelectorAll<HTMLTextAreaElement>(
-      "textarea[data-content-start]",
-    );
-    const target = Array.from(segments ?? []).find((segment) => {
-      const start = Number(segment.dataset.contentStart);
-      const end = Number(segment.dataset.contentEnd);
-      return caret >= start && caret <= end;
-    });
+    const target = textareaRef.current;
     pendingCaretRef.current = null;
     if (!target) return;
-    const localCaret = Math.min(
-      Math.max(caret - Number(target.dataset.contentStart), 0),
-      target.value.length,
-    );
+    const localCaret = Math.min(Math.max(caret, 0), target.value.length);
+    growTextarea(target, 420);
     target.focus({ preventScroll: true });
     target.setSelectionRange(localCaret, localCaret);
     textareaRef.current = target;
-  }
-
-  function restoreViewportAnchor() {
-    const anchor = pendingViewportAnchorRef.current;
-    const root = bodyRootRef.current;
-    if (!anchor || !root) return;
-
-    let targetTop: number | null = null;
-    if ("imageUrl" in anchor) {
-      const image = Array.from(
-        root.querySelectorAll<HTMLElement>("[data-image-url]"),
-      ).find((candidate) => candidate.dataset.imageUrl === anchor.imageUrl);
-      targetTop = image?.getBoundingClientRect().top ?? null;
-    } else {
-      const textarea = Array.from(
-        root.querySelectorAll<HTMLTextAreaElement>(
-          "textarea[data-content-start]",
-        ),
-      ).find((candidate) => {
-        const start = Number(candidate.dataset.contentStart);
-        const end = Number(candidate.dataset.contentEnd);
-        return anchor.contentOffset >= start && anchor.contentOffset <= end;
-      });
-      if (textarea) {
-        const localOffset =
-          anchor.contentOffset - Number(textarea.dataset.contentStart);
-        targetTop =
-          textarea.getBoundingClientRect().top +
-          textareaCaretTop(textarea, localOffset);
-      }
-    }
-
-    pendingViewportAnchorRef.current = null;
-    if (targetTop !== null) {
-      window.scrollBy(0, targetTop - anchor.top);
-    }
   }
 
   useEffect(() => {
@@ -191,23 +118,9 @@ export default function WritingEditor({
     autosizeTextarea(titleRef.current, 52);
   }, []);
 
-  // Image operations split or join text segments. React can reuse a textarea
-  // with the height of the old, much longer segment, creating a large blank
-  // area around the image. Re-measure only after those structural operations,
-  // not after ordinary typing.
   useLayoutEffect(() => {
-    const segments = bodyRootRef.current?.querySelectorAll<HTMLTextAreaElement>(
-      "textarea[data-content-start]",
-    );
-    for (const segment of segments ?? []) {
-      autosizeTextarea(
-        segment,
-        segment.dataset.emptyDocument === "true" ? 420 : 36,
-      );
-    }
     restoreCaretWithoutScrolling();
-    restoreViewportAnchor();
-  }, [bodyLayoutVersion, bodyMode]);
+  }, [content, bodyMode]);
 
   useEffect(
     () => () => {
@@ -301,7 +214,6 @@ export default function WritingEditor({
   ) {
     const images = await supportedImageFiles(files);
     if (images.length === 0) {
-      pendingDropTopRef.current = null;
       setStatus(
         mode === "github"
           ? "Drop a PNG, JPEG, GIF, or WebP image."
@@ -310,7 +222,6 @@ export default function WritingEditor({
       return;
     }
     if (!title.trim() || !groupName.trim()) {
-      pendingDropTopRef.current = null;
       setStatus("Set a group and title before adding images.");
       return;
     }
@@ -319,10 +230,9 @@ export default function WritingEditor({
     setUploading(true);
 
     const el = textareaRef.current;
-    const segmentStart = Number(el?.dataset.contentStart ?? content.length);
     let start =
-      insertion?.start ?? segmentStart + (el?.selectionStart ?? 0);
-    let end = insertion?.end ?? segmentStart + (el?.selectionEnd ?? 0);
+      insertion?.start ?? el?.selectionStart ?? content.length;
+    let end = insertion?.end ?? el?.selectionEnd ?? start;
     let next = content;
 
     setStatus(images.length > 1 ? "Uploading images…" : "Uploading image…");
@@ -340,8 +250,6 @@ export default function WritingEditor({
         if (mode === "github") {
           const extension = fileExtension(file);
           const base = slugify(file.name.replace(/\.[^.]+$/, "") || "image");
-          // This function runs only in response to a drop or paste event.
-          // eslint-disable-next-line react-hooks/purity
           filename = `${Date.now()}-${images.indexOf(file)}-${base}${extension}`;
           const resolvedGroupId = groupId || slugify(groupName);
           imageUrl = `/writing/${resolvedGroupId}/${effectiveSlug}/${filename}`;
@@ -362,15 +270,6 @@ export default function WritingEditor({
           ...current,
           [imageUrl]: previewUrl,
         }));
-        if (
-          pendingDropTopRef.current !== null &&
-          pendingViewportAnchorRef.current === null
-        ) {
-          pendingViewportAnchorRef.current = {
-            top: pendingDropTopRef.current,
-            imageUrl,
-          };
-        }
         const alt = slugify(file.name.replace(/\.[^.]+$/, "") || "image");
         const snippet = `\n\n![${alt}](${imageUrl})\n\n`;
         next = next.slice(0, start) + snippet + next.slice(end);
@@ -383,9 +282,7 @@ export default function WritingEditor({
         .filter((token) => token.type === "image")
         .findLast((token) => token.url === lastInsertedUrl);
       pendingCaretRef.current = insertedImage?.end ?? next.length;
-      pendingDropTopRef.current = null;
       setContent(next);
-      setBodyLayoutVersion((current) => current + 1);
       setStatus(
         mode === "github"
           ? `${images.length > 1 ? "Images" : "Image"} staged. Save to publish.`
@@ -394,155 +291,11 @@ export default function WritingEditor({
             : "Image added.",
       );
     } catch (error) {
-      pendingDropTopRef.current = null;
       setStatus(error instanceof Error ? error.message : "Upload failed");
     } finally {
       setUploading(false);
       operationInFlightRef.current = false;
     }
-  }
-
-  function removeImage(start: number, end: number, url: string) {
-    const image = Array.from(
-      bodyRootRef.current?.querySelectorAll<HTMLElement>("[data-image-url]") ??
-        [],
-    ).find(
-      (candidate) =>
-        candidate.dataset.imageUrl === url &&
-        Number(candidate.dataset.contentStart) === start,
-    );
-    if (image) {
-      pendingViewportAnchorRef.current = {
-        top: image.getBoundingClientRect().top,
-        contentOffset: start,
-      };
-    }
-    const removed = removeMarkdownImage(content, start, end);
-    setContent(removed.content);
-    setBodyLayoutVersion((current) => current + 1);
-    setSelectedImage(null);
-    pendingCaretRef.current = removed.offset;
-  }
-
-  function insertAfterImage(
-    token: DraggedImage,
-    markdown: string,
-  ) {
-    const next = normalizeMarkdownImageSpacing(
-      content.slice(0, token.end) + markdown + content.slice(token.end),
-    );
-    setContent(next);
-    setBodyLayoutVersion((current) => current + 1);
-    const inserted = tokenizeMarkdownImages(next)
-      .filter((candidate) => candidate.type === "image")
-      .find(
-        (candidate) =>
-          candidate.start >= token.end && candidate.raw === markdown,
-      );
-    if (inserted) setSelectedImage(`${inserted.start}:${inserted.url}`);
-  }
-
-  function moveImage(token: DraggedImage, targetOffset: number) {
-    if (targetOffset >= token.start && targetOffset <= token.end) {
-      draggedImageRef.current = null;
-      dropOffsetRef.current = null;
-      pendingViewportAnchorRef.current = null;
-      setDraggedImage(null);
-      setPointerY(null);
-      return;
-    }
-    const removed = removeMarkdownImage(
-      content,
-      token.start,
-      token.end,
-      targetOffset,
-    );
-    const adjustedOffset = removed.offset;
-    const next = normalizeMarkdownImageSpacing(
-      removed.content.slice(0, adjustedOffset) +
-        token.raw +
-        removed.content.slice(adjustedOffset),
-    );
-    const moved = tokenizeMarkdownImages(next)
-      .filter((candidate) => candidate.type === "image")
-      .reduce<DraggedImage | null>((closest, candidate) => {
-        if (candidate.url !== token.url) return closest;
-        if (!closest) return candidate;
-        return Math.abs(candidate.start - adjustedOffset) <
-          Math.abs(closest.start - adjustedOffset)
-          ? candidate
-          : closest;
-      }, null);
-    setContent(next);
-    setBodyLayoutVersion((current) => current + 1);
-    setSelectedImage(moved ? `${moved.start}:${moved.url}` : null);
-    draggedImageRef.current = null;
-    dropOffsetRef.current = null;
-    setDraggedImage(null);
-    setPointerY(null);
-  }
-
-  // Between-block spacer that widens slightly during a drag so the caret has
-  // room to visualize an insertion between two blocks. All drop routing goes
-  // through the form-level onDrop / onDragOver so we don't need per-zone
-  // handlers (which used to swallow drops via stopPropagation).
-  function imageDropZone(_offset: number, key: string) {
-    return (
-      <div
-        key={key}
-        aria-hidden="true"
-        className={`pointer-events-none transition-[height] ${
-          dragActive ? "h-4" : "h-0"
-        }`}
-      />
-    );
-  }
-
-  // Given a pointer Y (viewport coords), compute the character offset in
-  // `content` where an image should drop. Walks the rendered body segments,
-  // and inside a text-segment textarea does line-level arithmetic so the
-  // offset lands right between paragraphs / lines instead of just at
-  // block boundaries.
-  function computeDropOffsetAt(clientY: number): number {
-    const root = bodyRootRef.current;
-    if (!root) return content.length;
-    const segments = Array.from(
-      root.querySelectorAll<HTMLElement>("[data-content-start]"),
-    );
-    if (!segments.length) return content.length;
-
-    for (let index = 0; index < segments.length; index += 1) {
-      const seg = segments[index];
-      const rect = seg.getBoundingClientRect();
-      const start = Number(seg.dataset.contentStart);
-      const end = Number(seg.dataset.contentEnd);
-
-      if (clientY < rect.top) {
-        return start;
-      }
-      if (clientY > rect.bottom) continue;
-
-      if (seg.tagName === "TEXTAREA") {
-        const textarea = seg as HTMLTextAreaElement;
-        return start + textareaDropOffsetAt(textarea, clientY);
-      }
-
-      // Image button (non-textarea): snap to the closer of start / end.
-      const mid = (rect.top + rect.bottom) / 2;
-      return clientY < mid ? start : end;
-    }
-
-    return Number(segments[segments.length - 1].dataset.contentEnd);
-  }
-
-  function updateDropOffsetFromPointer(clientY: number) {
-    const root = bodyRootRef.current;
-    if (!root) return;
-    const rootRect = root.getBoundingClientRect();
-    const localY = clientY - rootRect.top;
-    setPointerY((current) => (current === localY ? current : localY));
-    const offset = computeDropOffsetAt(clientY);
-    dropOffsetRef.current = offset;
   }
 
   function hasFiles(event: React.DragEvent) {
@@ -554,66 +307,46 @@ export default function WritingEditor({
     );
   }
 
-  function onDragEnter(event: React.DragEvent) {
+  function onDragEnter(event: React.DragEvent<HTMLTextAreaElement>) {
     if (busy) return;
     if (!hasFiles(event)) return;
     event.preventDefault();
-    event.stopPropagation();
-    draggedImageRef.current = null;
     dragCount.current += 1;
     setDragging(true);
   }
 
-  function onDragOver(event: React.DragEvent) {
+  function onDragOver(event: React.DragEvent<HTMLTextAreaElement>) {
     if (busy) return;
-    const internalImage = draggedImageRef.current;
-    if (!hasFiles(event) && !internalImage) return;
-    event.preventDefault();
-    event.stopPropagation();
-    event.dataTransfer.dropEffect = internalImage ? "move" : "copy";
-    updateDropOffsetFromPointer(event.clientY);
-  }
-
-  function onDragLeave(event: React.DragEvent) {
     if (!hasFiles(event)) return;
     event.preventDefault();
-    event.stopPropagation();
+    event.dataTransfer.dropEffect = "copy";
+  }
+
+  function onDragLeave(event: React.DragEvent<HTMLTextAreaElement>) {
+    if (!hasFiles(event)) return;
+    event.preventDefault();
     dragCount.current = Math.max(0, dragCount.current - 1);
     if (dragCount.current === 0) {
       setDragging(false);
-      dropOffsetRef.current = null;
-      setPointerY(null);
     }
   }
 
-  function onDrop(event: React.DragEvent) {
+  function onDrop(event: React.DragEvent<HTMLTextAreaElement>) {
     event.preventDefault();
-    event.stopPropagation();
     if (busy) return;
     dragCount.current = 0;
     setDragging(false);
 
-    const target =
-      dropOffsetRef.current ?? computeDropOffsetAt(event.clientY);
-    const internalImage = draggedImageRef.current;
     const files = droppedFiles(event.dataTransfer);
-
-    if (internalImage) {
-      pendingViewportAnchorRef.current = {
-        top: event.clientY,
-        imageUrl: internalImage.url,
-      };
-      moveImage(internalImage, target);
-      setStatus("Image moved.");
-    } else if (files.length) {
-      pendingDropTopRef.current = event.clientY;
-      void addImages(files, { start: target, end: target });
-    } else {
+    if (!files.length) {
       setStatus("No image file was found in that drop.");
+      return;
     }
-
-    dropOffsetRef.current = null;
-    setPointerY(null);
+    const target = event.currentTarget;
+    void addImages(files, {
+      start: target.selectionStart,
+      end: target.selectionEnd,
+    });
   }
 
   function onPaste(event: React.ClipboardEvent<HTMLTextAreaElement>) {
@@ -663,14 +396,11 @@ export default function WritingEditor({
   return (
     <form
       className="writing-canvas relative"
+      style={{ overflowAnchor: "none" }}
       onSubmit={(event) => {
         event.preventDefault();
         void save();
       }}
-      onDragEnterCapture={onDragEnter}
-      onDragOverCapture={onDragOver}
-      onDragLeaveCapture={onDragLeave}
-      onDropCapture={onDrop}
     >
       <div className="sticky top-0 z-10 mb-8 flex items-center justify-between gap-4 bg-white/90 py-2 font-sans backdrop-blur-sm">
         <div className="flex items-center gap-4" role="group" aria-label="Editor view">
@@ -788,146 +518,44 @@ export default function WritingEditor({
         </time>
       ) : null}
 
-      <div ref={bodyRootRef} className="relative mt-8 min-h-[62vh]">
+      <div className="relative mt-8 min-h-[62vh]">
         {bodyMode === "edit" ? (
-          <div>
-            {bodyTokens.map((token, index) =>
-              <Fragment key={`${token.type}-${token.start}-${index}`}>
-                {imageDropZone(token.start, `drop-${index}`)}
-                {token.type === "text" ? (
-                  token.value.length === 0 && content.length > 0 ? null : (
-                  <textarea
-                    disabled={busy}
-                    ref={registerBodySegment}
-                    key={`segment-${token.start}-${bodyLayoutVersion}`}
-                    rows={1}
-                    data-empty-document={content.length === 0}
-                    data-content-start={token.start}
-                    data-content-end={token.end}
-                    aria-label="Body"
-                    value={token.value}
-                    onFocus={(event) => {
-                      textareaRef.current = event.currentTarget;
-                      setSelectedImage(null);
-                    }}
-                    onChange={(event) => {
-                      const nextValue = event.target.value;
-                      const shrank = nextValue.length < token.value.length;
-                      const textarea = event.currentTarget;
-                      setContent(
-                        (current) =>
-                          current.slice(0, token.start) +
-                          nextValue +
-                          current.slice(token.end),
-                      );
-                      requestAnimationFrame(() => {
-                        if (shrank) {
-                          resizeTextareaWithoutCollapsing(textarea, 36);
-                        } else {
-                          growTextarea(textarea, 36);
-                        }
-                      });
-                    }}
-                    onPaste={onPaste}
-                    placeholder={content.length === 0 ? "Start writing…" : undefined}
-                    className="writing-editor-segment"
-                  />
-                  )
-                ) : (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    draggable={!busy}
-                    data-content-start={token.start}
-                    data-content-end={token.end}
-                    data-image-url={token.url}
-                    onClick={(event) => {
-                      event.currentTarget.focus();
-                      setSelectedImage(`${token.start}:${token.url}`);
-                    }}
-                    onDragStart={(event) => {
-                      event.dataTransfer.effectAllowed = "move";
-                      event.dataTransfer.setData(
-                        "application/x-writing-image",
-                        token.raw,
-                      );
-                      event.dataTransfer.setData("text/plain", token.raw);
-                      draggedImageRef.current = token;
-                      setDraggedImage(token);
-                      setSelectedImage(`${token.start}:${token.url}`);
-                    }}
-                    onDragEnd={() => {
-                      draggedImageRef.current = null;
-                      dropOffsetRef.current = null;
-                      setDraggedImage(null);
-                      setPointerY(null);
-                    }}
-                    onCopy={(event) => {
-                      event.preventDefault();
-                      event.clipboardData.setData("text/plain", token.raw);
-                      setStatus("Image copied.");
-                    }}
-                    onCut={(event) => {
-                      event.preventDefault();
-                      event.clipboardData.setData("text/plain", token.raw);
-                      removeImage(token.start, token.end, token.url);
-                      setStatus("Image cut.");
-                    }}
-                    onPaste={(event) => {
-                      const files = droppedFiles(event.clipboardData);
-                      if (files.length) {
-                        event.preventDefault();
-                        void addImages(files, {
-                          start: token.end,
-                          end: token.end,
-                        });
-                        return;
-                      }
-                      const markdown = event.clipboardData.getData("text/plain");
-                      if (!markdown) return;
-                      event.preventDefault();
-                      insertAfterImage(token, markdown);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Backspace" && event.key !== "Delete") {
-                        return;
-                      }
-                      event.preventDefault();
-                      removeImage(token.start, token.end, token.url);
-                    }}
-                    className={`my-5 block w-full cursor-grab border-2 bg-transparent p-1 text-left transition-colors active:cursor-grabbing ${
-                      selectedImage === `${token.start}:${token.url}`
-                        ? "border-[var(--cardinal)]"
-                        : "border-transparent hover:border-[var(--line-strong)]"
-                    }`}
-                    aria-label={`${token.alt || "Image"}. Drag to move, or use Copy, Cut, Paste, Backspace, or Delete.`}
-                  >
-                    <img
-                      src={imagePreviews[token.url] ?? token.url}
-                      alt={token.alt || "Image"}
-                      draggable={false}
-                      onError={(event) => {
-                        const preview = imagePreviewsRef.current[token.url];
-                        if (preview && event.currentTarget.src !== preview) {
-                          event.currentTarget.src = preview;
-                          return;
-                        }
-                        if (event.currentTarget.dataset.fallbackApplied) return;
-                        event.currentTarget.dataset.fallbackApplied = "true";
-                        event.currentTarget.src = githubRawImageUrl(token.url);
-                      }}
-                      className="mx-auto block max-h-[70vh] max-w-full"
-                    />
-                    {selectedImage === `${token.start}:${token.url}` ? (
-                      <span className="mt-2 block text-center font-sans text-[0.76rem] text-[var(--ink-4)]">
-                        Drag to move · ⌘C copy · ⌘V paste · ⌘X cut · Backspace delete
-                      </span>
-                    ) : null}
-                  </button>
-                )}
-              </Fragment>,
-            )}
-            {imageDropZone(content.length, "drop-end")}
+          <div className="relative">
+            <textarea
+              disabled={busy}
+              ref={registerBodyTextarea}
+              rows={12}
+              aria-label="Body"
+              value={content}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                const shrank = nextValue.length < content.length;
+                const textarea = event.currentTarget;
+                setContent(nextValue);
+                requestAnimationFrame(() => {
+                  if (shrank) {
+                    resizeTextareaWithoutCollapsing(textarea, 420);
+                  } else {
+                    growTextarea(textarea, 420);
+                  }
+                });
+              }}
+              onPaste={onPaste}
+              onDragEnter={onDragEnter}
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+              onDrop={onDrop}
+              placeholder="Start writing…"
+              className="writing-editor-segment writing-editor-markdown"
+            />
+            {dragging ? (
+              <div className="pointer-events-none absolute inset-0 flex items-start justify-center border border-dashed border-[var(--cardinal)] bg-white/80 pt-6 font-sans text-[0.78rem] uppercase tracking-[0.16em] text-[var(--cardinal)]">
+                Drop image to insert Markdown at the cursor
+              </div>
+            ) : null}
+            <p className="mt-3 font-sans text-[0.74rem] text-[var(--ink-4)]">
+              Images stay as Markdown in Write mode and render in Preview.
+            </p>
           </div>
         ) : content.trim() ? (
           <WritingMarkdown>{content}</WritingMarkdown>
@@ -936,20 +564,6 @@ export default function WritingEditor({
             Nothing to preview yet.
           </p>
         )}
-        {dragging && (
-          <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center text-[0.82rem] uppercase tracking-[0.16em] text-[var(--cardinal)]">
-            Drop image to insert
-          </div>
-        )}
-        {dragActive && pointerY !== null ? (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 z-20 h-0"
-            style={{ top: pointerY }}
-          >
-            <span className="absolute inset-x-0 top-0 block h-px bg-[var(--cardinal)] before:absolute before:-top-[3px] before:-left-1 before:size-[7px] before:rounded-full before:bg-[var(--cardinal)]" />
-          </div>
-        ) : null}
       </div>
     </form>
   );

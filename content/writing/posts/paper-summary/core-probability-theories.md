@@ -43,6 +43,7 @@ Maximum Likelihood Estimation (MLE) is a method for choosing model parameters so
 
 For a simple example, refer to the following diagram. Which distribution seems to explain the data points well?
 
+![screenshot-2026-09-11-at-9-42-54-am](/writing/paper-summary/core-probability-theories/1789087376692-0-screenshot-2026-09-11-at-9-42-54-am.png)
 
 To determine this, we calculate \(P(x_1) * P(x_2) * \cdots * P(x_n)\) for each distribution to see which one yields the highest value. In this diagram, the third distribution will certainly have the highest value. Here finding distributon equals to finding mean and std, parameters that can maximize the thing.
 
@@ -149,6 +150,7 @@ and by extending \(P(C_1, S)\) it can be re-written as following(which is Bayes 
 
 $$
 P(S \mid C_1)
+
 =
 \frac{P(S)P(C_1 \mid S)}{P(C_1)}
 $$

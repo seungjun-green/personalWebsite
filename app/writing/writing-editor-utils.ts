@@ -1,4 +1,5 @@
 import {
+  detectWritingImageType,
   isSupportedWritingImage,
   writingImageExtension,
 } from "../lib/writing-images";
@@ -128,12 +129,27 @@ export function isSupportedImageFile(file: File) {
   return isSupportedWritingImage(file.type, file.name);
 }
 
+export async function supportedImageFiles(files: FileList | File[]) {
+  const supported = await Promise.all(
+    Array.from(files).map(async (file) => {
+      if (isSupportedImageFile(file)) return file;
+      try {
+        const header = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+        return detectWritingImageType(header) ? file : null;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return supported.filter((file): file is File => file !== null);
+}
+
 export function droppedFiles(dataTransfer: DataTransfer) {
-  const itemFiles = Array.from(dataTransfer.items)
+  const itemFiles = Array.from(dataTransfer.items ?? [])
     .filter((item) => item.kind === "file")
     .map((item) => item.getAsFile())
     .filter((file): file is File => file !== null);
-  return itemFiles.length ? itemFiles : Array.from(dataTransfer.files);
+  return itemFiles.length ? itemFiles : Array.from(dataTransfer.files ?? []);
 }
 
 export function fileExtension(file: File) {

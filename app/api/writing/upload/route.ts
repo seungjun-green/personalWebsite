@@ -3,8 +3,8 @@ import { saveUpload, upsertGroup } from "../../../lib/writing";
 import { slugify } from "../../../lib/slug";
 import { getWritingAccess, isAllowedMutationOrigin } from "../../../lib/writing-auth";
 import {
+  detectWritingImageType,
   hasValidWritingImageSignature,
-  isSupportedWritingImage,
   MAX_WRITING_IMAGE_BYTES,
   writingImageExtension,
 } from "../../../lib/writing-images";
@@ -34,9 +34,6 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Image file is required." }, { status: 400 });
   }
-  if (!isSupportedWritingImage(file.type, file.name)) {
-    return NextResponse.json({ error: "Use a PNG, JPEG, GIF, or WebP image." }, { status: 400 });
-  }
   if (file.size > MAX_WRITING_IMAGE_BYTES) {
     return NextResponse.json({ error: "Images must be less than 4 MB." }, { status: 413 });
   }
@@ -47,8 +44,6 @@ export async function POST(request: Request) {
   try {
     const group = upsertGroup(groupName, groupId);
     const slug = String(form.get("slug") || slugify(title));
-    const ext = writingImageExtension(file.name, file.type);
-    const filename = `${Date.now()}-${slugify(file.name.replace(/\.[^.]+$/, "") || "image")}${ext}`;
     const bytes = Buffer.from(await file.arrayBuffer());
     if (!hasValidWritingImageSignature(bytes, file.type)) {
       return NextResponse.json(
@@ -56,6 +51,9 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    const detectedType = detectWritingImageType(bytes);
+    const ext = writingImageExtension(file.name, detectedType ?? file.type);
+    const filename = `${Date.now()}-${slugify(file.name.replace(/\.[^.]+$/, "") || "image")}${ext}`;
     const url = saveUpload({ groupId: group.id, slug, filename, bytes });
 
     return NextResponse.json({ url, alt: file.name, slug, groupId: group.id });

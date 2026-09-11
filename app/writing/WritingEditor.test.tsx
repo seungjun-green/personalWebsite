@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import WritingEditor from "./WritingEditor";
@@ -23,6 +30,10 @@ describe("WritingEditor", () => {
       value: vi.fn(() => "blob:preview"),
     });
     Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    Object.defineProperty(window, "scrollBy", {
       configurable: true,
       value: vi.fn(),
     });
@@ -103,5 +114,89 @@ describe("WritingEditor", () => {
           .disabled,
       ).toBe(false),
     );
+  });
+
+  it("identifies clipboard image bytes and inserts them at the active caret", async () => {
+    const user = userEvent.setup();
+    render(<WritingEditor groups={[]} mode="github" headSha="head" />);
+
+    await user.type(screen.getByRole("combobox", { name: "Group name" }), "Notes");
+    await user.type(screen.getByRole("textbox", { name: "Title" }), "Images");
+    const body = screen.getByRole("textbox", { name: "Body" }) as HTMLTextAreaElement;
+    await user.type(body, "BeforeAfter");
+    body.setSelectionRange(6, 6);
+    const file = new File(
+      [new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])],
+      "clipboard-image",
+      { type: "" },
+    );
+    const item = { kind: "file", getAsFile: () => file };
+
+    fireEvent.paste(body, {
+      clipboardData: { files: [], items: [item] },
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /clipboard-image/i })).toBeTruthy(),
+    );
+    expect(
+      screen
+        .getAllByRole("textbox", { name: "Body" })
+        .map((element) => (element as HTMLTextAreaElement).value)
+        .join(""),
+    ).toBe("Before\n\n\n\nAfter");
+  });
+
+  it("accepts a file exposed through drag items and inserts it at the drop point", async () => {
+    const user = userEvent.setup();
+    render(<WritingEditor groups={[]} mode="github" headSha="head" />);
+
+    await user.type(screen.getByRole("combobox", { name: "Group name" }), "Notes");
+    await user.type(screen.getByRole("textbox", { name: "Title" }), "Drag image");
+    const body = screen.getByRole("textbox", { name: "Body" }) as HTMLTextAreaElement;
+    await user.type(body, "Existing text");
+    Object.defineProperty(body, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({
+        top: 100,
+        bottom: 200,
+        left: 0,
+        right: 600,
+        width: 600,
+        height: 100,
+        x: 0,
+        y: 100,
+        toJSON: () => ({}),
+      }),
+    });
+    const file = new File(
+      [new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])],
+      "dropped-image",
+      { type: "image/x-png" },
+    );
+    const item = { kind: "file", getAsFile: () => file };
+
+    const drop = createEvent.drop(body);
+    Object.defineProperties(drop, {
+      clientY: { value: 100 },
+      dataTransfer: {
+        value: {
+          types: ["Files"],
+          items: [item],
+          files: [],
+        },
+      },
+    });
+    fireEvent(body, drop);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /dropped-image/i })).toBeTruthy(),
+    );
+    expect(
+      screen
+        .getAllByRole("textbox", { name: "Body" })
+        .map((element) => (element as HTMLTextAreaElement).value)
+        .join(""),
+    ).toBe("\n\nExisting text");
   });
 });

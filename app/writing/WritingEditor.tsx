@@ -29,8 +29,8 @@ import {
   fileExtension,
   githubRawImageUrl,
   growTextarea,
-  isSupportedImageFile,
   resizeTextareaWithoutCollapsing,
+  supportedImageFiles,
   textareaCaretTop,
   textareaDropOffsetAt,
 } from "./writing-editor-utils";
@@ -299,9 +299,7 @@ export default function WritingEditor({
     files: FileList | File[],
     insertion?: { start: number; end: number },
   ) {
-    const images = Array.from(files).filter(
-      (file) => isSupportedImageFile(file),
-    );
+    const images = await supportedImageFiles(files);
     if (images.length === 0) {
       pendingDropTopRef.current = null;
       setStatus(
@@ -549,8 +547,10 @@ export default function WritingEditor({
 
   function hasFiles(event: React.DragEvent) {
     return (
-      Array.from(event.dataTransfer.types).includes("Files") ||
-      Array.from(event.dataTransfer.items).some((item) => item.kind === "file")
+      Array.from(event.dataTransfer.types ?? []).includes("Files") ||
+      Array.from(event.dataTransfer.items ?? []).some(
+        (item) => item.kind === "file",
+      )
     );
   }
 
@@ -617,8 +617,8 @@ export default function WritingEditor({
   }
 
   function onPaste(event: React.ClipboardEvent<HTMLTextAreaElement>) {
-    const files = event.clipboardData.files;
-    if (files?.length && Array.from(files).some((file) => file.type.startsWith("image/"))) {
+    const files = droppedFiles(event.clipboardData);
+    if (files.length) {
       event.preventDefault();
       void addImages(files);
     }
@@ -874,13 +874,8 @@ export default function WritingEditor({
                       setStatus("Image cut.");
                     }}
                     onPaste={(event) => {
-                      const files = event.clipboardData.files;
-                      if (
-                        files?.length &&
-                        Array.from(files).some((file) =>
-                          file.type.startsWith("image/"),
-                        )
-                      ) {
+                      const files = droppedFiles(event.clipboardData);
+                      if (files.length) {
                         event.preventDefault();
                         void addImages(files, {
                           start: token.end,

@@ -198,6 +198,8 @@ Once we have those values, we can compute $P(S \mid C_1)$.
 
 ## Central Limit Theorem
 
+![image](/writing/paper-summary/core-probability-theories/1789089623227-0-image.png)
+
 Suppose someone wants to estimate the weight distribution of bunnies in a mountain. In reality, it is not possible to catch all the bunnies. So he repeats the following process:
 
 1. Catch 10 bunnies

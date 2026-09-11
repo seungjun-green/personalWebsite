@@ -36,7 +36,9 @@ repository-scoped token to commit writing changes. Copy `.env.example` and confi
   `https://your-domain.example/api/auth/callback/github`.
 - A fine-grained personal access token limited to this repository with
   `Contents: Read and write`.
-- The four variables from `.env.example` in Vercel. Keep all of them server-only.
+- The authentication and GitHub variables from `.env.example` in Vercel. Keep
+  all of them server-only. `WRITING_TIME_ZONE` is optional and defaults to
+  `Asia/Seoul` for new-post dates.
 
 Generate `AUTH_SECRET` with:
 

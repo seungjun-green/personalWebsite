@@ -44,7 +44,10 @@ export function WritingAdminProvider({
           cache: "no-store",
           signal: controller.signal,
         });
-        if (!response.ok) return;
+        if (!response.ok) {
+          setState((current) => ({ ...current, loaded: true }));
+          return;
+        }
         const data = (await response.json()) as {
           editor?: boolean;
           signedIn?: boolean;

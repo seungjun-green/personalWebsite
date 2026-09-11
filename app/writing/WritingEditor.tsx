@@ -23,6 +23,17 @@ import { slugify } from "../lib/slug";
 import DeletePostButton from "./DeletePostButton";
 import WritingMarkdown from "./WritingMarkdown";
 import WritingPostView from "./WritingPostView";
+import {
+  autosizeTextarea,
+  droppedFiles,
+  fileExtension,
+  githubRawImageUrl,
+  growTextarea,
+  isSupportedImageFile,
+  resizeTextareaWithoutCollapsing,
+  textareaCaretTop,
+  textareaDropOffsetAt,
+} from "./writing-editor-utils";
 
 type Props = {
   groups: WritingGroup[];
@@ -43,15 +54,6 @@ type ViewportAnchor =
   | { top: number; imageUrl: string }
   | { top: number; contentOffset: number };
 
-const PUBLISHABLE_IMAGE_TYPES = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/gif",
-  "image/webp",
-]);
-const PUBLISHABLE_IMAGE_EXTENSION = /\.(?:png|jpe?g|gif|webp)$/i;
-const IMAGE_EXTENSION = /\.(?:png|jpe?g|gif|webp|svg)$/i;
-
 export default function WritingEditor({
   groups,
   post,
@@ -68,6 +70,7 @@ export default function WritingEditor({
   const dropOffsetRef = useRef<number | null>(null);
   const pendingDropTopRef = useRef<number | null>(null);
   const pendingViewportAnchorRef = useRef<ViewportAnchor | null>(null);
+  const operationInFlightRef = useRef(false);
   const [title, setTitle] = useState(post?.title ?? "");
   const [groupName, setGroupName] = useState(post?.groupName ?? "");
   const [content, setContent] = useState(() =>
@@ -77,6 +80,7 @@ export default function WritingEditor({
   const dragCount = useRef(0);
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [bodyMode, setBodyMode] = useState<"edit" | "preview">("edit");
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
   const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
@@ -90,6 +94,7 @@ export default function WritingEditor({
   // cursor continuously instead of snapping only to discrete drop zones.
   const [pointerY, setPointerY] = useState<number | null>(null);
   const dragActive = dragging || draggedImage !== null;
+  const busy = saving || uploading;
 
   const slug = useMemo(() => slugify(title || post?.slug || "untitled"), [title, post?.slug]);
   const effectiveSlug = post?.slug ?? slug;
@@ -106,7 +111,7 @@ export default function WritingEditor({
   }, [groupName, groups, post]);
   const registerBodySegment = useCallback((element: HTMLTextAreaElement | null) => {
     if (!element) return;
-    autosize(element, element.dataset.emptyDocument === "true" ? 420 : 36);
+    autosizeTextarea(element, element.dataset.emptyDocument === "true" ? 420 : 36);
     if (!textareaRef.current || !textareaRef.current.isConnected) {
       textareaRef.current = element;
     }
@@ -183,7 +188,7 @@ export default function WritingEditor({
   }, []);
 
   useLayoutEffect(() => {
-    autosize(titleRef.current, 52);
+    autosizeTextarea(titleRef.current, 52);
   }, []);
 
   // Image operations split or join text segments. React can reuse a textarea
@@ -195,7 +200,7 @@ export default function WritingEditor({
       "textarea[data-content-start]",
     );
     for (const segment of segments ?? []) {
-      autosize(
+      autosizeTextarea(
         segment,
         segment.dataset.emptyDocument === "true" ? 420 : 36,
       );
@@ -214,6 +219,8 @@ export default function WritingEditor({
   );
 
   async function save() {
+    if (operationInFlightRef.current) return;
+    operationInFlightRef.current = true;
     setSaving(true);
     setStatus("");
     setCommitUrl("");
@@ -284,6 +291,7 @@ export default function WritingEditor({
       setStatus(error instanceof Error ? error.message : "Save failed");
     } finally {
       setSaving(false);
+      operationInFlightRef.current = false;
     }
   }
 
@@ -292,7 +300,7 @@ export default function WritingEditor({
     insertion?: { start: number; end: number },
   ) {
     const images = Array.from(files).filter(
-      (file) => isSupportedImageFile(file, mode),
+      (file) => isSupportedImageFile(file),
     );
     if (images.length === 0) {
       pendingDropTopRef.current = null;
@@ -308,6 +316,9 @@ export default function WritingEditor({
       setStatus("Set a group and title before adding images.");
       return;
     }
+    if (operationInFlightRef.current) return;
+    operationInFlightRef.current = true;
+    setUploading(true);
 
     const el = textareaRef.current;
     const segmentStart = Number(el?.dataset.contentStart ?? content.length);
@@ -387,6 +398,9 @@ export default function WritingEditor({
     } catch (error) {
       pendingDropTopRef.current = null;
       setStatus(error instanceof Error ? error.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      operationInFlightRef.current = false;
     }
   }
 
@@ -541,6 +555,7 @@ export default function WritingEditor({
   }
 
   function onDragEnter(event: React.DragEvent) {
+    if (busy) return;
     if (!hasFiles(event)) return;
     event.preventDefault();
     event.stopPropagation();
@@ -550,6 +565,7 @@ export default function WritingEditor({
   }
 
   function onDragOver(event: React.DragEvent) {
+    if (busy) return;
     const internalImage = draggedImageRef.current;
     if (!hasFiles(event) && !internalImage) return;
     event.preventDefault();
@@ -573,6 +589,7 @@ export default function WritingEditor({
   function onDrop(event: React.DragEvent) {
     event.preventDefault();
     event.stopPropagation();
+    if (busy) return;
     dragCount.current = 0;
     setDragging(false);
 
@@ -635,6 +652,7 @@ export default function WritingEditor({
               title={publishedPost.title}
               mode={mode}
               headSha={repositoryHead}
+              disabled={busy}
             />
           </div>
         }
@@ -690,27 +708,35 @@ export default function WritingEditor({
               title={title.trim() || post.title}
               mode={mode}
               headSha={repositoryHead}
+              disabled={busy}
               className="cursor-pointer text-[0.78rem] text-[var(--ink-4)] hover:text-[var(--cardinal)] disabled:opacity-60"
             />
           ) : null}
           <Link
             href={post?.href ?? "/writing"}
             prefetch
-            className="writing-editor-cancel text-[0.78rem]"
+            aria-disabled={busy}
+            onClick={(event) => {
+              if (busy) event.preventDefault();
+            }}
+            className={`writing-editor-cancel text-[0.78rem] ${
+              busy ? "pointer-events-none opacity-50" : ""
+            }`}
           >
             Cancel
           </Link>
           <button
             type="submit"
-            disabled={saving}
+            disabled={busy}
             className="cursor-pointer rounded-full bg-[var(--cardinal)] px-4 py-1.5 text-[0.78rem] font-medium text-white disabled:opacity-60"
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Saving…" : uploading ? "Adding image…" : "Save"}
           </button>
         </div>
       </div>
 
       <input
+        disabled={busy}
         list="writing-groups"
         value={groupName}
         onChange={(e) => setGroupName(e.target.value)}
@@ -728,6 +754,7 @@ export default function WritingEditor({
       </datalist>
 
       <textarea
+        disabled={busy}
         ref={titleRef}
         rows={1}
         value={title}
@@ -768,8 +795,9 @@ export default function WritingEditor({
               <Fragment key={`${token.type}-${token.start}-${index}`}>
                 {imageDropZone(token.start, `drop-${index}`)}
                 {token.type === "text" ? (
-                  token.value.length === 0 ? null : (
+                  token.value.length === 0 && content.length > 0 ? null : (
                   <textarea
+                    disabled={busy}
                     ref={registerBodySegment}
                     key={`segment-${token.start}-${bodyLayoutVersion}`}
                     rows={1}
@@ -808,7 +836,8 @@ export default function WritingEditor({
                 ) : (
                   <button
                     type="button"
-                    draggable
+                    disabled={busy}
+                    draggable={!busy}
                     data-content-start={token.start}
                     data-content-end={token.end}
                     data-image-url={token.url}
@@ -929,125 +958,4 @@ export default function WritingEditor({
       </div>
     </form>
   );
-}
-
-function autosize(el: HTMLTextAreaElement | null, minHeight: number) {
-  if (!el) return;
-  el.style.height = "auto";
-  el.style.height = `${Math.max(el.scrollHeight, minHeight)}px`;
-}
-
-function growTextarea(el: HTMLTextAreaElement, minHeight: number) {
-  const nextHeight = Math.max(el.scrollHeight, minHeight);
-  if (nextHeight > el.clientHeight) el.style.height = `${nextHeight}px`;
-}
-
-function resizeTextareaWithoutCollapsing(
-  el: HTMLTextAreaElement,
-  minHeight: number,
-) {
-  const measurement = el.cloneNode() as HTMLTextAreaElement;
-  measurement.value = el.value;
-  measurement.setAttribute("aria-hidden", "true");
-  measurement.tabIndex = -1;
-  measurement.style.position = "fixed";
-  measurement.style.left = "-10000px";
-  measurement.style.top = "0";
-  measurement.style.visibility = "hidden";
-  measurement.style.pointerEvents = "none";
-  measurement.style.width = `${el.getBoundingClientRect().width}px`;
-  measurement.style.height = "auto";
-  document.body.appendChild(measurement);
-  const nextHeight = Math.max(measurement.scrollHeight, minHeight);
-  measurement.remove();
-  el.style.height = `${nextHeight}px`;
-}
-
-function textareaCaretTop(textarea: HTMLTextAreaElement, offset: number) {
-  const style = getComputedStyle(textarea);
-  const mirror = document.createElement("div");
-  const marker = document.createElement("span");
-  mirror.style.position = "fixed";
-  mirror.style.left = "-10000px";
-  mirror.style.top = "0";
-  mirror.style.visibility = "hidden";
-  mirror.style.boxSizing = style.boxSizing;
-  mirror.style.width = `${textarea.getBoundingClientRect().width}px`;
-  mirror.style.padding = style.padding;
-  mirror.style.border = style.border;
-  mirror.style.font = style.font;
-  mirror.style.letterSpacing = style.letterSpacing;
-  mirror.style.lineHeight = style.lineHeight;
-  mirror.style.whiteSpace = "pre-wrap";
-  mirror.style.overflowWrap = "break-word";
-  mirror.style.wordBreak = style.wordBreak;
-  mirror.textContent = textarea.value.slice(0, offset);
-  marker.textContent = "\u200b";
-  mirror.appendChild(marker);
-  document.body.appendChild(mirror);
-  const top =
-    marker.getBoundingClientRect().top - mirror.getBoundingClientRect().top;
-  mirror.remove();
-  return top;
-}
-
-function textareaDropOffsetAt(textarea: HTMLTextAreaElement, clientY: number) {
-  const rect = textarea.getBoundingClientRect();
-  const style = getComputedStyle(textarea);
-  const lineHeight =
-    parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.5 || 24;
-  const targetTop = Math.max(0, clientY - rect.top - lineHeight / 2);
-  let low = 0;
-  let high = textarea.value.length;
-
-  while (low < high) {
-    const middle = Math.floor((low + high) / 2);
-    if (textareaCaretTop(textarea, middle) < targetTop) low = middle + 1;
-    else high = middle;
-  }
-
-  const approximate = low;
-  const lineStart = textarea.value.lastIndexOf("\n", approximate - 1) + 1;
-  const nextBreak = textarea.value.indexOf("\n", approximate);
-  const lineEnd = nextBreak === -1 ? textarea.value.length : nextBreak + 1;
-  const startTop = textareaCaretTop(textarea, lineStart);
-  const endTop =
-    lineEnd === textarea.value.length
-      ? textareaCaretTop(textarea, lineEnd) + lineHeight
-      : textareaCaretTop(textarea, lineEnd);
-
-  return clientY - rect.top < (startTop + endTop) / 2 ? lineStart : lineEnd;
-}
-
-function githubRawImageUrl(url: string) {
-  if (!url.startsWith("/writing/")) return url;
-  return `https://raw.githubusercontent.com/seungjun-green/personalWebsite/main/public${url}`;
-}
-
-function isSupportedImageFile(file: File, mode: "local" | "github") {
-  if (mode === "github") {
-    return (
-      PUBLISHABLE_IMAGE_TYPES.has(file.type.toLowerCase()) ||
-      PUBLISHABLE_IMAGE_EXTENSION.test(file.name)
-    );
-  }
-  return file.type.startsWith("image/") || IMAGE_EXTENSION.test(file.name);
-}
-
-function droppedFiles(dataTransfer: DataTransfer) {
-  const itemFiles = Array.from(dataTransfer.items)
-    .filter((item) => item.kind === "file")
-    .map((item) => item.getAsFile())
-    .filter((file): file is File => file !== null);
-  return itemFiles.length ? itemFiles : Array.from(dataTransfer.files);
-}
-
-function fileExtension(file: File) {
-  const match = file.name.match(/\.(png|jpe?g|gif|webp|svg)$/i);
-  if (match) return match[0].toLowerCase();
-  if (file.type === "image/jpeg") return ".jpg";
-  if (file.type === "image/webp") return ".webp";
-  if (file.type === "image/gif") return ".gif";
-  if (file.type === "image/svg+xml") return ".svg";
-  return ".png";
 }

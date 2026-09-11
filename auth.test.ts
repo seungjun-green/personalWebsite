@@ -17,4 +17,11 @@ describe("GitHub admin allowlist", () => {
     expect(isAllowedWritingOrigin("https://evil.example", url, false)).toBe(false);
     expect(isAllowedWritingOrigin("https://site.example", url, false)).toBe(true);
   });
+
+  it("still rejects cross-site mutation origins in development", () => {
+    const url = "http://localhost:3000/api/writing";
+    expect(isAllowedWritingOrigin(null, url, true)).toBe(true);
+    expect(isAllowedWritingOrigin("https://evil.example", url, true)).toBe(false);
+    expect(isAllowedWritingOrigin("http://localhost:3000", url, true)).toBe(true);
+  });
 });

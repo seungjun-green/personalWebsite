@@ -9,6 +9,7 @@ export default function DeletePostButton({
   title,
   mode = "local",
   headSha,
+  disabled = false,
   className = "cursor-pointer border border-[var(--line-strong)] px-3 py-1.5 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--ink-2)] transition-colors hover:border-[var(--cardinal)] hover:text-[var(--cardinal)] disabled:opacity-60",
 }: {
   groupId: string;
@@ -16,12 +17,14 @@ export default function DeletePostButton({
   title: string;
   mode?: "local" | "github";
   headSha?: string;
+  disabled?: boolean;
   className?: string;
 }) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
 
   async function onDelete() {
+    if (disabled) return;
     if (!window.confirm(`Delete “${title}” and all of its images?`)) return;
     setDeleting(true);
     try {
@@ -47,7 +50,7 @@ export default function DeletePostButton({
   return (
     <button
       type="button"
-      disabled={deleting}
+      disabled={disabled || deleting}
       onClick={() => void onDelete()}
       className={className}
     >

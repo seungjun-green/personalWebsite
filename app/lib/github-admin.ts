@@ -7,7 +7,6 @@ export function isAllowedWritingOrigin(
   requestUrl: string,
   development: boolean,
 ) {
-  if (development) return true;
-  if (!origin) return false;
+  if (!origin) return development;
   return origin === new URL(requestUrl).origin;
 }

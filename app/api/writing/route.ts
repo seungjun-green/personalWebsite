@@ -70,18 +70,25 @@ export async function POST(request: Request) {
 
   const groupId = body.groupId?.trim() || slugify(groupName);
   const slug = body.slug?.trim() || slugify(title);
-  const saved = savePost({
-    title,
-    groupId,
-    groupName,
-    slug,
-    body: body.content ?? "",
-    date: body.date,
-    previousGroupId: body.previousGroupId,
-    previousSlug: body.previousSlug,
-  });
+  try {
+    const saved = savePost({
+      title,
+      groupId,
+      groupName,
+      slug,
+      body: body.content ?? "",
+      date: body.date,
+      previousGroupId: body.previousGroupId,
+      previousSlug: body.previousSlug,
+    });
 
-  return NextResponse.json({ post: saved, tree: getWritingTree() });
+    return NextResponse.json({ post: saved, tree: getWritingTree() });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Save failed." },
+      { status: 400 },
+    );
+  }
 }
 
 export async function PATCH(request: Request) {

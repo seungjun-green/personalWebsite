@@ -8,17 +8,14 @@ import {
   getWritingAccess,
   isAllowedMutationOrigin,
 } from "../../../../lib/writing-auth";
+import {
+  hasValidWritingImageSignature,
+  isSupportedWritingImage,
+  MAX_WRITING_IMAGE_BYTES,
+} from "../../../../lib/writing-images";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
-const IMAGE_TYPES = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/gif",
-  "image/webp",
-]);
 
 export async function POST(request: Request) {
   const access = await getWritingAccess();
@@ -40,7 +37,7 @@ export async function POST(request: Request) {
       .getAll("images")
       .filter((entry): entry is File => entry instanceof File);
     const totalBytes = files.reduce((total, file) => total + file.size, 0);
-    if (totalBytes > MAX_IMAGE_BYTES) {
+    if (totalBytes > MAX_WRITING_IMAGE_BYTES) {
       return NextResponse.json(
         { error: "Images must total less than 4 MB." },
         { status: 413 },
@@ -54,10 +51,13 @@ export async function POST(request: Request) {
       })),
     );
     for (const file of images) {
-      if (!IMAGE_TYPES.has(file.type) || !/^[a-zA-Z0-9._-]+$/.test(file.filename)) {
+      if (
+        !isSupportedWritingImage(file.type, file.filename) ||
+        !/^[a-zA-Z0-9._-]+$/.test(file.filename)
+      ) {
         return NextResponse.json({ error: "Invalid image file." }, { status: 400 });
       }
-      if (!hasValidImageSignature(file.bytes, file.type)) {
+      if (!hasValidWritingImageSignature(file.bytes, file.type)) {
         return NextResponse.json(
           { error: "Image contents do not match its file type." },
           { status: 400 },
@@ -76,24 +76,4 @@ export async function POST(request: Request) {
       { status: error instanceof GithubConflictError ? 409 : 400 },
     );
   }
-}
-
-function hasValidImageSignature(bytes: Buffer, type: string) {
-  if (type === "image/png") {
-    return bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
-  }
-  if (type === "image/jpeg") {
-    return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-  }
-  if (type === "image/gif") {
-    const signature = bytes.subarray(0, 6).toString("ascii");
-    return signature === "GIF87a" || signature === "GIF89a";
-  }
-  if (type === "image/webp") {
-    return (
-      bytes.subarray(0, 4).toString("ascii") === "RIFF" &&
-      bytes.subarray(8, 12).toString("ascii") === "WEBP"
-    );
-  }
-  return false;
 }

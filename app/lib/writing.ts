@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
 import { markdownImageUrls } from "./markdown-images";
+import { assertWritingSegment, isWritingSegment, slugify } from "./slug";
+import { currentWritingDate } from "./writing-date";
 
 export type WritingGroup = {
   id: string;
@@ -171,6 +173,7 @@ export function updateWritingOrganization(
 }
 
 export function getPost(groupId: string, slug: string): WritingPost | null {
+  if (!isWritingSegment(groupId) || !isWritingSegment(slug)) return null;
   const file = path.join(POSTS_DIR, groupId, `${slug}.md`);
   if (!fs.existsSync(file)) return null;
   const groups = readGroups();
@@ -190,7 +193,8 @@ export function getPost(groupId: string, slug: string): WritingPost | null {
 
 export function upsertGroup(name: string, id?: string): WritingGroup {
   const groups = readGroups();
-  const groupId = id || name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const groupId = id || slugify(name);
+  assertWritingSegment(groupId, "group");
   const existing = groups.find((g) => g.id === groupId);
   if (existing) {
     if (existing.name !== name && name.trim()) {
@@ -215,8 +219,16 @@ export function savePost(input: {
   previousGroupId?: string;
   previousSlug?: string;
 }): WritingPostMeta {
+  assertWritingSegment(input.groupId, "group");
+  assertWritingSegment(input.slug, "post slug");
+  if (input.previousGroupId) {
+    assertWritingSegment(input.previousGroupId, "previous group");
+  }
+  if (input.previousSlug) {
+    assertWritingSegment(input.previousSlug, "previous post slug");
+  }
   const group = upsertGroup(input.groupName || input.groupId, input.groupId);
-  const date = input.date || new Date().toISOString().slice(0, 10);
+  const date = input.date || currentWritingDate();
   const dir = path.join(POSTS_DIR, group.id);
   fs.mkdirSync(dir, { recursive: true });
   let body = input.body;
@@ -332,6 +344,8 @@ export function saveUpload(params: {
   filename: string;
   bytes: Buffer;
 }) {
+  assertWritingSegment(params.groupId, "group");
+  assertWritingSegment(params.slug, "post slug");
   const safeName = params.filename.replace(/[^a-zA-Z0-9._-]/g, "-");
   const dir = path.join(PUBLIC_WRITING_DIR, params.groupId, params.slug);
   fs.mkdirSync(dir, { recursive: true });
@@ -341,6 +355,8 @@ export function saveUpload(params: {
 }
 
 export function deletePost(groupId: string, slug: string) {
+  assertWritingSegment(groupId, "group");
+  assertWritingSegment(slug, "post slug");
   const postPath = path.join(POSTS_DIR, groupId, `${slug}.md`);
   if (!fs.existsSync(postPath)) throw new Error("Post not found.");
   fs.unlinkSync(postPath);

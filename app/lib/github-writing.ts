@@ -13,7 +13,8 @@ import {
   type WritingTree,
 } from "./writing";
 import { markdownImageUrls } from "./markdown-images";
-import { slugify } from "./slug";
+import { assertWritingSegment, slugify } from "./slug";
+import { currentWritingDate } from "./writing-date";
 
 type RepositoryConfig = {
   owner: string;
@@ -57,12 +58,6 @@ function client() {
   const auth = process.env.GITHUB_CONTENT_PAT;
   if (!auth) throw new Error("GitHub publishing token is not configured.");
   return new Octokit({ auth });
-}
-
-function assertSegment(value: string, label: string) {
-  if (!/^[a-z0-9][a-z0-9-]*$/.test(value)) {
-    throw new Error(`Invalid ${label}.`);
-  }
 }
 
 function assertRepoPath(repoPath: string) {
@@ -325,8 +320,8 @@ export async function saveGithubPost(
   );
   const groupId = knownGroup?.id || slugify(groupName);
   const slug = input.previousSlug || input.slug || slugify(title);
-  assertSegment(groupId, "group");
-  assertSegment(slug, "post slug");
+  assertWritingSegment(groupId, "group");
+  assertWritingSegment(slug, "post slug");
 
   const groups = snapshot.groups.map((group) => ({
     ...group,
@@ -400,7 +395,7 @@ export async function saveGithubPost(
     }
   }
 
-  const date = input.date || new Date().toISOString().slice(0, 10);
+  const date = input.date || currentWritingDate();
   changes.push({
     path: "content/writing/groups.json",
     content: serializeGroups(groups),
@@ -443,8 +438,8 @@ export async function deleteGithubPost(
   groupId: string,
   slug: string,
 ) {
-  assertSegment(groupId, "group");
-  assertSegment(slug, "post slug");
+  assertWritingSegment(groupId, "group");
+  assertWritingSegment(slug, "post slug");
   const snapshot = await getGithubWritingSnapshot(expectedHead, false);
   if (
     !snapshot.files.some(

@@ -159,24 +159,54 @@ describe("WritingEditor", () => {
     await user.type(screen.getByRole("textbox", { name: "Title" }), "Drag image");
     const body = screen.getByRole("textbox", { name: "Body" }) as HTMLTextAreaElement;
     await user.type(body, "Existing text");
-    body.setSelectionRange(0, 0);
+    Object.defineProperty(body, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({
+        top: 100,
+        bottom: 300,
+        left: 0,
+        right: 600,
+        width: 600,
+        height: 200,
+        x: 0,
+        y: 100,
+        toJSON: () => ({}),
+      }),
+    });
     const file = new File(
       [new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])],
       "dropped-image",
       { type: "image/x-png" },
     );
     const item = { kind: "file", getAsFile: () => file };
+    const dataTransfer = {
+      types: ["Files"],
+      items: [item],
+      files: [],
+      dropEffect: "none",
+    };
+
+    fireEvent.dragEnter(body, { dataTransfer });
+    const dragOver = createEvent.dragOver(body);
+    Object.defineProperties(dragOver, {
+      clientY: { value: 150 },
+      dataTransfer: { value: dataTransfer },
+    });
+    fireEvent(body, dragOver);
+    expect(screen.getByTestId("image-drop-caret").style.top).toBe("50px");
+
+    const dragOverAtStart = createEvent.dragOver(body);
+    Object.defineProperties(dragOverAtStart, {
+      clientY: { value: 100 },
+      dataTransfer: { value: dataTransfer },
+    });
+    fireEvent(body, dragOverAtStart);
+    expect(screen.getByTestId("image-drop-caret").style.top).toBe("0px");
 
     const drop = createEvent.drop(body);
     Object.defineProperties(drop, {
       clientY: { value: 100 },
-      dataTransfer: {
-        value: {
-          types: ["Files"],
-          items: [item],
-          files: [],
-        },
-      },
+      dataTransfer: { value: dataTransfer },
     });
     fireEvent(body, drop);
 

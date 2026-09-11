@@ -26,6 +26,7 @@ import {
   growTextarea,
   resizeTextareaWithoutCollapsing,
   supportedImageFiles,
+  textareaDropOffsetAt,
 } from "./writing-editor-utils";
 
 type Props = {
@@ -52,6 +53,7 @@ export default function WritingEditor({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pendingCaretRef = useRef<number | null>(null);
   const imagePreviewsRef = useRef<Record<string, string>>({});
+  const dropOffsetRef = useRef<number | null>(null);
   const operationInFlightRef = useRef(false);
   const [title, setTitle] = useState(post?.title ?? "");
   const [groupName, setGroupName] = useState(post?.groupName ?? "");
@@ -59,6 +61,7 @@ export default function WritingEditor({
     normalizeMarkdownImageSpacing(post?.body ?? ""),
   );
   const [dragging, setDragging] = useState(false);
+  const [dropIndicatorTop, setDropIndicatorTop] = useState<number | null>(null);
   const dragCount = useRef(0);
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
@@ -320,6 +323,12 @@ export default function WritingEditor({
     if (!hasFiles(event)) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = "copy";
+    const target = event.currentTarget;
+    const rect = target.getBoundingClientRect();
+    dropOffsetRef.current = textareaDropOffsetAt(target, event.clientY);
+    setDropIndicatorTop(
+      Math.min(Math.max(event.clientY - rect.top, 0), rect.height),
+    );
   }
 
   function onDragLeave(event: React.DragEvent<HTMLTextAreaElement>) {
@@ -328,6 +337,8 @@ export default function WritingEditor({
     dragCount.current = Math.max(0, dragCount.current - 1);
     if (dragCount.current === 0) {
       setDragging(false);
+      dropOffsetRef.current = null;
+      setDropIndicatorTop(null);
     }
   }
 
@@ -340,12 +351,18 @@ export default function WritingEditor({
     const files = droppedFiles(event.dataTransfer);
     if (!files.length) {
       setStatus("No image file was found in that drop.");
+      dropOffsetRef.current = null;
+      setDropIndicatorTop(null);
       return;
     }
     const target = event.currentTarget;
+    const offset =
+      dropOffsetRef.current ?? textareaDropOffsetAt(target, event.clientY);
+    dropOffsetRef.current = null;
+    setDropIndicatorTop(null);
     void addImages(files, {
-      start: target.selectionStart,
-      end: target.selectionEnd,
+      start: offset,
+      end: offset,
     });
   }
 
@@ -549,8 +566,18 @@ export default function WritingEditor({
               className="writing-editor-segment writing-editor-markdown"
             />
             {dragging ? (
-              <div className="pointer-events-none absolute inset-0 flex items-start justify-center border border-dashed border-[var(--cardinal)] bg-white/80 pt-6 font-sans text-[0.78rem] uppercase tracking-[0.16em] text-[var(--cardinal)]">
-                Drop image to insert Markdown at the cursor
+              <span className="pointer-events-none absolute top-2 right-2 z-20 bg-white/90 px-2 py-1 font-sans text-[0.7rem] uppercase tracking-[0.12em] text-[var(--cardinal)]">
+                Drop image here
+              </span>
+            ) : null}
+            {dragging && dropIndicatorTop !== null ? (
+              <div
+                data-testid="image-drop-caret"
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 z-10 h-0"
+                style={{ top: dropIndicatorTop }}
+              >
+                <span className="absolute inset-x-0 top-0 block h-0.5 bg-[var(--cardinal)] before:absolute before:-top-[3px] before:-left-1 before:size-2 before:rounded-full before:bg-[var(--cardinal)]" />
               </div>
             ) : null}
             <p className="mt-3 font-sans text-[0.74rem] text-[var(--ink-4)]">

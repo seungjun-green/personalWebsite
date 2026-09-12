@@ -52,10 +52,9 @@ Why not use context distillation for everything? As shown in Figure 16b of the p
 
 A dedicated red team actively tried to break/jailbreak the model. When they found prompts that consistently bypassed safety guardrails, human annotators manually wrote ideal safe responses for those specific prompts. These hand-crafted examples were added directly to the training set.
 
+## Additional Details
 
-## Extra Details
-
-In Following Sections, you will know extra details intrdouced in the papers
+The following sections take a closer look at several techniques and implementation details introduced in the paper.
 
 ### Ghost Attention
 

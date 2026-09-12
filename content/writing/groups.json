@@ -25,7 +25,8 @@
       "id": "paper-summaries",
       "name": "Paper Summaries",
       "postOrder": [
-        "deepseek-r1"
+        "deepseek-r1",
+        "llama-2"
       ]
     }
   ]

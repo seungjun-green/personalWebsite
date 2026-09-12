@@ -20,6 +20,13 @@
       "postOrder": [
         "kaggle-playground-series-general-strategy-playbook"
       ]
+    },
+    {
+      "id": "paper-summaries",
+      "name": "Paper Summaries",
+      "postOrder": [
+        "deepseek-r1"
+      ]
     }
   ]
 }

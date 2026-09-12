@@ -133,19 +133,21 @@ Yet longer reasoning, self-reflection, and behaviors such as “wait, let me ret
 
 ### 1. Reasoning capability increased
 
-[image](https://miro.medium.com/v2/resize:fit:933/1*O-QFHwBFIdFZCzhbPnDE8g.png)
+![image](/writing/paper-summaries/deepseek-r1/1789173252537-0-image.png)
 
 ### 2. Thinking time increased by itself during RL training
 
-The number of thinking tokens increased during RL training even though the researchers never explicitly trained the model to produce longer reasoning.
+![image](/writing/paper-summaries/deepseek-r1/1789173260161-0-image.png)
 
-[image](https://miro.medium.com/v2/resize:fit:933/1*QgN5nKKsPSRIvBATY0odHg.png)
+The number of thinking tokens increased during RL training even though the researchers never explicitly trained the model to produce longer reasoning.
 
 ### 3. “Wait, wait. Wait. That’s an aha moment I can flag here.”
 
+![image](/writing/paper-summaries/deepseek-r1/1789173266731-0-image.png)
+
 The model also learned behaviors such as rethinking and self-reflection using an anthropomorphic tone.
 
-[image](https://miro.medium.com/v2/resize:fit:933/1*XFp_1WIa68cfC1N7X6J_tA.png)
+
 
 Drawback: readability issues and language mixing.
 

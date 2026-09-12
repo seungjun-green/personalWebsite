@@ -15,19 +15,19 @@
       ]
     },
     {
-      "id": "kaggle-playground-series",
-      "name": "Kaggle Playground Series",
-      "postOrder": [
-        "kaggle-playground-series-general-strategy-playbook"
-      ]
-    },
-    {
       "id": "paper-summaries",
       "name": "Paper Summaries",
       "postOrder": [
         "deepseek-r1",
         "llama-2",
         "deepseek-code"
+      ]
+    },
+    {
+      "id": "kaggle-playground-series",
+      "name": "Kaggle Playground Series",
+      "postOrder": [
+        "kaggle-playground-series-general-strategy-playbook"
       ]
     }
   ]

@@ -141,21 +141,40 @@ export function updateWritingOrganization(
   requestedGroups: WritingOrganizationGroup[],
 ): WritingTree {
   const currentTree = getWritingTree();
-  const currentById = new Map(currentTree.groups.map((group) => [group.id, group]));
+  const groups = organizeWritingGroups(currentTree.groups, requestedGroups);
+  writeGroups(groups);
+  return getWritingTree();
+}
+
+export function organizeWritingGroups(
+  currentGroups: WritingTree["groups"],
+  requestedGroups: WritingOrganizationGroup[],
+): WritingGroup[] {
+  const currentById = new Map(currentGroups.map((group) => [group.id, group]));
   const requestedIds = requestedGroups.map((group) => group.id);
 
   if (
-    requestedIds.length !== currentTree.groups.length ||
     new Set(requestedIds).size !== requestedIds.length ||
-    requestedIds.some((id) => !currentById.has(id))
+    currentGroups.some((group) => !requestedIds.includes(group.id))
   ) {
     throw new Error("The group list changed. Refresh and try again.");
   }
 
   const groups = requestedGroups.map((requested) => {
-    const current = currentById.get(requested.id)!;
+    assertWritingSegment(requested.id, "group");
     const name = requested.name.trim();
     if (!name) throw new Error("Group names cannot be empty.");
+    if (!Array.isArray(requested.postOrder)) {
+      throw new Error("Invalid group post order.");
+    }
+
+    const current = currentById.get(requested.id);
+    if (!current) {
+      if (requested.postOrder.length > 0) {
+        throw new Error("New groups cannot contain existing posts.");
+      }
+      return { id: requested.id, name, postOrder: [] };
+    }
 
     const validSlugs = new Set(current.posts.map((post) => post.slug));
     const orderedSlugs = requested.postOrder.filter(
@@ -168,8 +187,12 @@ export function updateWritingOrganization(
     return { id: current.id, name, postOrder: orderedSlugs };
   });
 
-  writeGroups(groups);
-  return getWritingTree();
+  const normalizedNames = groups.map((group) => group.name.toLocaleLowerCase());
+  if (new Set(normalizedNames).size !== normalizedNames.length) {
+    throw new Error("Group names must be unique.");
+  }
+
+  return groups;
 }
 
 export function getPost(groupId: string, slug: string): WritingPost | null {

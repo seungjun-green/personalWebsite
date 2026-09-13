@@ -20,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
+import { slugify } from "../lib/slug";
 import type { WritingTree } from "../lib/writing";
 
 type SidebarGroup = WritingTree["groups"][number];
@@ -41,6 +42,7 @@ export default function WritingSidebar({
   const [groups, setGroups] = useState<SidebarGroup[]>(() => cloneGroups(tree.groups));
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
   const [repositoryHead, setRepositoryHead] = useState(headSha);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -51,13 +53,39 @@ export default function WritingSidebar({
     setGroups(cloneGroups(tree.groups));
     setRepositoryHead(headSha);
     setStatus("");
+    setNewGroupName("");
     setManaging(true);
   }
 
   function cancelManaging() {
     setGroups(cloneGroups(tree.groups));
     setStatus("");
+    setNewGroupName("");
     setManaging(false);
+  }
+
+  function addGroup() {
+    const name = newGroupName.trim();
+    if (!name) return;
+    const id = slugify(name);
+    if (groups.some((group) => group.id === id)) {
+      setStatus("A group with that URL already exists.");
+      return;
+    }
+    if (
+      groups.some(
+        (group) => group.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase(),
+      )
+    ) {
+      setStatus("A group with that name already exists.");
+      return;
+    }
+    setGroups((current) => [
+      ...current,
+      { id, name, postOrder: [], posts: [] },
+    ]);
+    setNewGroupName("");
+    setStatus(`“${name}” added. Save changes to publish it.`);
   }
 
   function renameGroup(id: string, name: string) {
@@ -173,7 +201,7 @@ export default function WritingSidebar({
             onClick={beginManaging}
             className="cursor-pointer border border-[var(--line-strong)] bg-white px-3 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--ink-2)] transition-colors hover:border-[var(--cardinal)] hover:text-[var(--cardinal)]"
           >
-            Manage
+            Manage groups
           </button>
           <Link
             href="/writing/new"
@@ -185,7 +213,7 @@ export default function WritingSidebar({
       )}
       {managing && (
         <p className="mt-3 text-[0.82rem] leading-5 text-[var(--ink-3)]">
-          Drag to reorder. Rename groups inline.
+          Add, rename, or drag groups to reorder them.
         </p>
       )}
       {managing ? (
@@ -244,6 +272,37 @@ export default function WritingSidebar({
               </div>
             </SortableContext>
           </DndContext>
+          <div className="mt-5 border-t border-[var(--line)] pt-4">
+            <label
+              htmlFor="new-writing-group"
+              className="block text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--ink-3)]"
+            >
+              New group
+            </label>
+            <div className="mt-2 flex gap-2">
+              <input
+                id="new-writing-group"
+                value={newGroupName}
+                disabled={saving}
+                onChange={(event) => setNewGroupName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  addGroup();
+                }}
+                placeholder="Group name"
+                className="min-w-0 flex-1 border border-[var(--line-strong)] bg-white px-2 py-1.5 text-[0.82rem] outline-none focus:border-[var(--cardinal)] disabled:opacity-60"
+              />
+              <button
+                type="button"
+                disabled={saving || !newGroupName.trim()}
+                onClick={addGroup}
+                className="cursor-pointer border border-[var(--cardinal)] px-2.5 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.1em] text-[var(--cardinal)] disabled:cursor-default disabled:opacity-40"
+              >
+                Add
+              </button>
+            </div>
+          </div>
           <div className="mt-5 flex items-center gap-3">
             <button
               type="button"

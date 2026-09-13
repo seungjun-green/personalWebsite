@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildWritingTree,
+  organizeWritingGroups,
   parseFrontMatter,
   removePostFromGroupOrder,
   serializePost,
@@ -51,5 +52,47 @@ describe("writing domain", () => {
     );
     expect(groups[0].postOrder).toEqual(["two"]);
     expect(groups[1].postOrder).toEqual(["one"]);
+  });
+
+  it("adds a new empty group while preserving existing groups", () => {
+    const current = buildWritingTree(
+      [{ id: "notes", name: "Notes", postOrder: [] }],
+      [],
+    );
+
+    expect(
+      organizeWritingGroups(current.groups, [
+        { id: "notes", name: "Notes", postOrder: [] },
+        { id: "research", name: "Research", postOrder: [] },
+      ]),
+    ).toEqual([
+      { id: "notes", name: "Notes", postOrder: [] },
+      { id: "research", name: "Research", postOrder: [] },
+    ]);
+  });
+
+  it("does not let organization updates remove an existing group", () => {
+    const current = buildWritingTree(
+      [{ id: "notes", name: "Notes", postOrder: [] }],
+      [],
+    );
+
+    expect(() => organizeWritingGroups(current.groups, [])).toThrow(
+      "The group list changed",
+    );
+  });
+
+  it("requires unique group names", () => {
+    const current = buildWritingTree(
+      [{ id: "notes", name: "Notes", postOrder: [] }],
+      [],
+    );
+
+    expect(() =>
+      organizeWritingGroups(current.groups, [
+        { id: "notes", name: "Notes", postOrder: [] },
+        { id: "other", name: "notes", postOrder: [] },
+      ]),
+    ).toThrow("Group names must be unique");
   });
 });

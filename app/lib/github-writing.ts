@@ -3,6 +3,7 @@ import "server-only";
 import { Octokit } from "@octokit/rest";
 import {
   buildWritingTree,
+  organizeWritingGroups,
   parseFrontMatter,
   removePostFromGroupOrder,
   serializePost,
@@ -263,29 +264,7 @@ export async function updateGithubOrganization(
   requestedGroups: WritingOrganizationGroup[],
 ) {
   const snapshot = await getGithubWritingSnapshot(expectedHead);
-  const currentById = new Map(snapshot.tree.groups.map((group) => [group.id, group]));
-  const requestedIds = requestedGroups.map((group) => group.id);
-  if (
-    requestedIds.length !== snapshot.groups.length ||
-    new Set(requestedIds).size !== requestedIds.length ||
-    requestedIds.some((id) => !currentById.has(id))
-  ) {
-    throw new Error("The group list changed. Refresh and try again.");
-  }
-
-  const groups = requestedGroups.map((requested) => {
-    const current = currentById.get(requested.id)!;
-    const name = requested.name.trim();
-    if (!name) throw new Error("Group names cannot be empty.");
-    const valid = new Set(current.posts.map((post) => post.slug));
-    const postOrder = requested.postOrder.filter(
-      (slug, index, all) => valid.has(slug) && all.indexOf(slug) === index,
-    );
-    for (const post of current.posts) {
-      if (!postOrder.includes(post.slug)) postOrder.push(post.slug);
-    }
-    return { id: requested.id, name, postOrder };
-  });
+  const groups = organizeWritingGroups(snapshot.tree.groups, requestedGroups);
 
   return commitGithubChanges(
     expectedHead,

@@ -99,6 +99,7 @@ const featuredProjects: Project[] = [
 
 const awards = [
   { title: "Kaggle AI Agent Security - Multi-Step Tool Attacks", detail: "Silver medal · 2026" },
+  { title: "Kaggle Pokémon Company - PTCG AI Battle Challenge Simulation", detail: "Bronze Medal · 2026" },
   { title: "Kaggle Orbit Wars", detail: "Bronze medal · 2026" },
   { title: "Kaggle Predicting F1 Pit Stops", detail: "37/3022 · 2026" },
   { title: "Google Summer of Code", detail: "TensorFlow · 2023" },
@@ -356,7 +357,7 @@ export default function Home() {
               Kaggle
             </dt>
             <dd className="text-[var(--ink-2)]">
-              Notebooks: 7 bronze medals · Competitions: 1 bronze medal
+              Kaggle Competitions Expert (Top 0.87%)
             </dd>
             <dt className="text-[0.74rem] font-semibold uppercase tracking-[0.16em] text-[var(--ink-4)]">
               Based in

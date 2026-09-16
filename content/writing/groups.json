@@ -11,7 +11,8 @@
         "kv-cache",
         "what-s-inductive-bais-in-llms-cnns",
         "core-probability-theories",
-        "how-positional-encoding-evolved-in-transformers-from-sinusoidal-encoding-to-rope"
+        "how-positional-encoding-evolved-in-transformers-from-sinusoidal-encoding-to-rope",
+        "flash-attention"
       ]
     },
     {

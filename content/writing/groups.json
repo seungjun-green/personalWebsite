@@ -20,7 +20,8 @@
       "postOrder": [
         "deepseek-r1",
         "llama-2",
-        "deepseek-code"
+        "deepseek-code",
+        "switch-transformer"
       ]
     },
     {

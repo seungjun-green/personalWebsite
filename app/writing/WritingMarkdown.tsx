@@ -5,6 +5,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import remarkCompactMathNotation from "../lib/compact-math-notation";
+import remarkStandaloneMath from "../lib/standalone-math";
 import { normalizeMarkdownImageSpacing } from "../lib/markdown-images";
 
 export default function WritingMarkdown({
@@ -17,7 +18,7 @@ export default function WritingMarkdown({
   return (
     <div className="writing-body">
       <Markdown
-        remarkPlugins={[remarkGfm, remarkMath, remarkCompactMathNotation]}
+        remarkPlugins={[remarkGfm, remarkMath, remarkCompactMathNotation, remarkStandaloneMath]}
         rehypePlugins={[rehypeKatex]}
         components={{
           table: ({ children: tableChildren }) => (

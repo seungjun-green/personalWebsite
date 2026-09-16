@@ -349,9 +349,16 @@ a.writing-post-link:hover {
 }
 
 .writing-body .katex-display {
+  display: block;
+  text-align: center;
   margin: 1.5em 0;
   overflow-x: auto;
   padding: 0.4em 0;
+}
+
+.writing-body .katex-display > .katex {
+  text-align: center;
+  min-width: max-content;
 }
 
 /*

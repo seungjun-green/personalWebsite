@@ -1,5 +1,5 @@
 ---
-title: Model Quantization:
+title: Model Quantization
 group: paper-summary
 date: 2026-09-18
 ---

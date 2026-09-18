@@ -13,7 +13,8 @@
         "core-probability-theories",
         "how-positional-encoding-evolved-in-transformers-from-sinusoidal-encoding-to-rope",
         "flash-attention",
-        "transformer"
+        "transformer",
+        "model-quantization"
       ]
     },
     {

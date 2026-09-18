@@ -49,6 +49,14 @@ npx auth secret
 After adding the Vercel variables, redeploy once. Subsequent admin saves commit to
 `main`, and the GitHub/Vercel integration deploys those commits automatically.
 
+New post URLs also read committed content from GitHub when the running deployment
+does not yet contain the post. This makes refreshes and shared links work during
+deployment. Their images are served through a commit-pinned image endpoint until
+the next deployment includes them. Post pages render per request to avoid caching
+temporary 404s. Existing posts use deployed files without a GitHub lookup; edits
+to those posts and the public sidebar still update with the next deployment.
+The fallback uses the existing server-only `GITHUB_CONTENT_PAT`.
+
 ## Production Build
 
 Check that the site compiles:

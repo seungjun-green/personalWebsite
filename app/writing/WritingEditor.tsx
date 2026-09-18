@@ -180,7 +180,9 @@ export default function WritingEditor({
         setCommitUrl(data.url);
         setStatus("Committed to GitHub. Vercel deployment is in progress.");
         const savedPost = { ...data.post, body: normalizedContent } as WritingPost;
-        window.history.replaceState(window.history.state, "", savedPost.href);
+        // Let Next.js update usePathname so the reading layout and sidebar return.
+        // Passing its internal history state would bypass that synchronization.
+        window.history.replaceState(null, "", savedPost.href);
         setPublishedPost(savedPost);
         return;
       }
@@ -386,7 +388,7 @@ export default function WritingEditor({
               type="button"
               onClick={() => {
                 window.history.replaceState(
-                  window.history.state,
+                  null,
                   "",
                   `${publishedPost.href}/edit`,
                 );

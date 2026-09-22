@@ -7,7 +7,7 @@ date: 2026-09-22
 
 ## Overview
 
-The paper's thesis in one sentence: **the impressive results of R1-Zero-style training are over-credited to reinforcement learning. Much of what looks like "RL magic" is either already sitting in the base model or is an artifact of a biased optimizer.R1-Zero training is the DeepSeek recipe of applying RL directly to a base LLM with no supervised fine-tuning first; this paper takes it apart to see where the gains actually come from.
+The paper's thesis in one sentence: the impressive results of R1-Zero-style training are over-credited to reinforcement learning. Much of what looks like "RL magic" is either already sitting in the base model or is an artifact of a biased optimizer.R1-Zero training is the DeepSeek recipe of applying RL directly to a base LLM with no supervised fine-tuning first; this paper takes it apart to see where the gains actually come from.
 
 To make that case, the paper decomposes the paradigm into its two ingredients and examines each. This summary follows the same order: first the base model (how much is already there before RL touches it), then the RL algorithm(whether the optimizer is honest about what it's rewarding), and finally the payoff (a cleaner recipe built from both insights). Within the RL section, we go top-down through the math: the general RL objective, then GRPO built on it, then the flaw, then the fix.
 

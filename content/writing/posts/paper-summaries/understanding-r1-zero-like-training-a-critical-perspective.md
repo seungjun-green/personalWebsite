@@ -125,7 +125,7 @@ What's left is exactly the plain Monte-Carlo policy gradient with a mean baselin
 
 ---
 
-## Part 3 — Payoff: the minimalist recipe
+## Part 3 - Payoff: the minimalist recipe
 
 Combining both halves (start from a strong base model, and train it with the unbiased optimizer), the authors build a minimalist recipe: RL-tune Qwen2.5-Math-7B with Dr. GRPO on MATH level 3–5 questions. It reaches **43.3% accuracy on AIME 2024** using only ~27 hours on 8×A100 GPUs, a state-of-the-art result for that setting. The number is the point here, so there's no equation. A corrected optimizer plus an honest read of the base model is enough to beat more elaborate setups.
 

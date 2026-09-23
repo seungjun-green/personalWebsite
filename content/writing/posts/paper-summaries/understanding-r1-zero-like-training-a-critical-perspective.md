@@ -3,8 +3,6 @@ title: Understanding R1-Zero-Like Training: A Critical Perspective
 group: paper-summaries
 date: 2026-09-22
 ---
-# Understanding R1-Zero-Like Training: A Critical Perspective
-
 ## Overview
 
 The paper's thesis in one sentence: the impressive results of R1-Zero-style training are over-credited to reinforcement learning. Much of what looks like "RL magic" is either already sitting in the base model or is an artifact of a biased optimizer.R1-Zero training is the DeepSeek recipe of applying RL directly to a base LLM with no supervised fine-tuning first; this paper takes it apart to see where the gains actually come from.

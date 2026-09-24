@@ -25,7 +25,8 @@
         "llama-2",
         "deepseek-code",
         "switch-transformer",
-        "understanding-r1-zero-like-training-a-critical-perspective"
+        "understanding-r1-zero-like-training-a-critical-perspective",
+        "dapo"
       ]
     },
     {

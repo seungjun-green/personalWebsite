@@ -50,64 +50,7 @@ Language coverage expands from 29 languages in Qwen2.5 to 119 languages and dial
 
 ## 2. Architecture
 
-> Qwen2.5's design, plus stability fixes in attention and a redesigned MoE layer.
-
-### 2.1 Dense Models
-
-#### Inherited components
-Qwen3 keeps GQA, SwiGLU, RoPE, and pre-norm RMSNorm from Qwen2.5.
-
-##### SwiGLU feed-forward *(background)*
-Two parallel projections, with one gating the other element-wise:
-
-$$\text{SwiGLU}(x) = W_{\text{down}}\big(\text{Swish}(W_{\text{gate}}x) \odot W_{\text{up}}x\big), \qquad \text{Swish}(z) = z\,\sigma(z)$$
-
-##### RMSNorm *(background)*
-Rescales by the root-mean-square, with no mean-centering and no bias:
-
-$$\text{RMSNorm}(x) = \frac{x}{\sqrt{\tfrac{1}{d}\sum_i x_i^2 + \epsilon}} \cdot \gamma$$
-
-##### Pre-norm placement *(background)*
-Normalization is applied inside each residual branch, so the residual stream passes through every layer unchanged. This keeps gradient flow clean in deep models:
-
-$$x_{\text{out}} = x + \text{Sublayer}\big(\text{Norm}(x)\big)$$
-
-#### Changes from Qwen2.5
-
-##### QKV bias removed
-The attention projections become purely linear: $q = W_q x$, $k = W_k x$, $v = W_v x$.
-
-##### QK-Norm added *(background)*
-If the norms of $q$ and $k$ grow during training, attention logits explode, the softmax saturates, and training becomes unstable, because $|q^\top k| \le \|q\|\|k\|$. QK-Norm applies RMSNorm to $q$ and $k$ per head, before RoPE, which keeps the logits bounded:
-
-$$\text{logit} = \text{RMSNorm}(q)^\top \, \text{RMSNorm}(k)$$
-
-### 2.2 MoE Models
-
-#### Routing *(background)*
-A router scores every expert, and each token uses only its top-$k$ experts:
-
-$$y = \sum_{i \in \text{Top-}k} g_i \cdot \text{Expert}_i(x)$$
-
-#### Fine-grained experts
-Each MoE layer has 128 small experts, with 8 active per token. With the same compute as a coarse design (for example, 16 experts with top-2), this allows vastly more combinations:
-
-$$\binom{16}{2} = 120 \qquad \text{vs.} \qquad \binom{128}{8} \approx 1.4 \times 10^{12}$$
-
-Smaller experts can specialize more narrowly and be combined more flexibly.
-
-#### No shared experts
-Qwen2.5-MoE used always-active shared experts, and Qwen3 removes them, so all expert capacity is routed. The report doesn't explain this choice.
-
-#### Global-batch load balancing *(background)*
-An auxiliary loss prevents router collapse, where a few experts receive most tokens:
-
-$$\mathcal{L}_{\text{balance}} = E \sum_{i=1}^{E} f_i \, P_i$$
-
-Here $f_i$ is the fraction of tokens routed to expert $i$, and $P_i$ is the router's mean probability for expert $i$. Qwen3 computes $f_i$ over the global batch instead of each micro-batch. A single micro-batch is often topically uniform, such as all code, and forcing balance within it prevents experts from specializing by domain. Balancing over the diverse global batch still prevents collapse while leaving experts free to specialize.
-
-### 2.3 Tokenizer
-Qwen3 uses byte-level BPE with a vocabulary of 151,669 tokens.
+Qwen3 keeps Qwen2.5's decoder-only Transformer design: grouped-query attention, SwiGLU feed-forward layers, RoPE positional encoding (with the base raised to 1,000,000 via ABF), and pre-norm RMSNorm. It makes two attention changes for training stability: it removes the QKV bias and adds QK-Norm, which normalizes queries and keys per head so the attention logits can't blow up. The MoE variants (30B-A3B and 235B-A22B) replace each feed-forward layer with 128 fine-grained experts, 8 of which are active per token. They drop the shared experts used in Qwen2.5-MoE and use a global-batch load-balancing loss so experts can specialize by domain. All models share a byte-level BPE tokenizer with a 151,669-token vocabulary, and context is 32K for the two smallest models and 128K for the rest (via YaRN at inference).
 
 ---
 
@@ -124,7 +67,7 @@ Compared with Qwen2.5, the corpus has about twice as many tokens (36T) and three
 Qwen2.5-VL extracts text from large volumes of PDF-like documents, and Qwen2.5 then refines it, adding trillions of tokens. Qwen2.5, Qwen2.5-Math, and Qwen2.5-Coder also generate trillions of synthetic tokens, including textbooks, Q&A, instructions, and code.
 
 #### Instance-level mixture optimization
-A multilingual annotation system labels over 30T tokens by educational value, field, domain, and safety. The data mixture is then tuned **per instance** rather than per domain, guided by ablations on small proxy models.
+Qwen3 uses a multilingual annotation system to label more than 30T tokens of pre-training data. Every individual document (an "instance") is tagged along several dimensions: its educational value, its field and domain, and its safety. Most prior work sets the data mixture at the level of whole domains (for example, "30% web, 20% code"), which treats every document in a category the same even though quality varies widely within each one. With these labels, Qwen3 can instead select and weight data per instance, keeping or up-weighting high-value documents and dropping or down-weighting low-value ones, whatever domain they come from. And as testing different mixtures on full-size models would be far too expensive, the team runs ablation experiments on small proxy models to compare candidate mixtures and uses the results to choose the final one.
 
 ### 3.2 Three-Stage Training
 
@@ -143,7 +86,7 @@ The mixture is reweighted toward STEM, coding, reasoning, and synthetic data, an
 #### S3: Long-context stage
 The long-context corpus is 75% sequences of 16K–32K tokens and 25% sequences of 4K–16K tokens. Three techniques are involved.
 
-##### RoPE recap *(background)*
+##### RoPE recap
 Each dimension pair $i$ of a $d$-dimensional head rotates at its own frequency:
 
 $$\theta_i = b^{-2i/d}$$
@@ -152,32 +95,86 @@ At position $m$, pair $i$ is rotated by the angle $m\theta_i$. The query–key d
 
 $$q_m^\top k_n = \mathrm{Re}\Big[\sum_i \tilde q_i \overline{\tilde k_i}\, e^{j(m-n)\theta_i}\Big]$$
 
-The **wavelength** of pair $i$, meaning the number of tokens per full rotation, is:
+The wavelength of pair $i$, meaning the number of tokens per full rotation, is:
 
 $$\lambda_i = \frac{2\pi}{\theta_i}$$
 
 Fast pairs encode fine local order, and slow pairs encode coarse long-range position, like the second, minute, and hour hands of a clock.
 
+#### 3 things that allowed Qwen3 to uses longer sequence
+
 ##### ABF (Adjusted Base Frequency)
 The RoPE base is raised from $b = 10{,}000$ to $b = 1{,}000{,}000$. This slows every rotation except pair 0, so the slowest wavelength grows from about 54K to about 5M tokens (for $d = 128$). Positions up to 32K therefore stay in a smooth, learnable range. This change is applied during training.
 
-##### YaRN *(background)*
-YaRN extends the context at inference by a factor $s$, with $s = 4$ for Qwen3 (32K → about 128K). It adjusts each pair according to how many full rotations it completed within the training length $L$:
+##### YaRN
+
+YaRN extends the context window **at inference only, with no extra training**, by a factor $s$. For Qwen3, $s = 4$, taking the trained length $L = 32{,}768$ to about 128K tokens.
+
+###### The problem past the training length
+During training, each RoPE pair rotated through some range of angles between position 0 and position $L$. **Fast pairs** completed thousands of full turns, so every angle appeared many times in training, and positions beyond $L$ produce familiar angles. **Slow pairs** covered only a small arc. After ABF, the slowest pair moves about $1.24 \times 10^{-6}$ rad/token, so it reaches only ~0.04 rad by 32K, but it would reach ~0.16 rad at 128K. That is an angle never seen in training, which makes the input out-of-distribution. The problem is therefore concentrated in the slow pairs.
+
+###### Why not slow every pair down?
+The simplest fix, **Position Interpolation**, divides every frequency by $s$:
+
+$$\theta_i' = \theta_i / s$$
+
+This maps 128K positions back into the angle range from training, but it also slows the fast pairs. Pair 0 would move 0.25 rad between neighboring tokens instead of 1 rad, which blurs the fine local order the model depends on.
+
+###### YaRN's per-pair rule
+YaRN measures how many full rotations each pair completed within the training length:
 
 $$r_i = \frac{L}{\lambda_i}$$
 
-A ramp function (with $\alpha = 1$ and $\beta = 32$) blends the original and interpolated frequencies:
+It then applies a ramp function with thresholds $\alpha = 1$ and $\beta = 32$:
 
-$$\gamma(r) = \begin{cases} 0 & r < \alpha \\ \frac{r-\alpha}{\beta-\alpha} & \alpha \le r \le \beta \\ 1 & r > \beta \end{cases} \qquad \theta_i' = \big(1-\gamma(r_i)\big)\frac{\theta_i}{s} + \gamma(r_i)\,\theta_i$$
+$$\gamma(r) = \begin{cases} 0 & r < \alpha \\ \dfrac{r-\alpha}{\beta-\alpha} & \alpha \le r \le \beta \\ 1 & r > \beta \end{cases}$$
 
-Fast pairs are left unchanged, which preserves local resolution. Slow pairs are divided by $s$, which keeps them within the angles seen in training. Pairs in between are blended.
+and blends the interpolated and original frequencies for each pair:
 
-A temperature term counteracts the flattening of attention that comes from having more keys in the softmax:
+$$\theta_i' = \underbrace{\big(1-\gamma(r_i)\big)\frac{\theta_i}{s}}_{\text{slowed-down part}} + \underbrace{\gamma(r_i)\,\theta_i}_{\text{original part}}$$
 
-$$\text{softmax}\Big(\frac{q^\top k}{t\sqrt{d}}\Big), \qquad \sqrt{1/t} = 0.1\ln s + 1 \approx 1.14 \;\;(s = 4)$$
+This gives three regimes. Pairs with $r_i > 32$ are left **unchanged**, since every angle is already familiar and local resolution is preserved. Pairs with $r_i < 1$ are **fully divided by $s$**, which keeps them within the angles seen in training. Pairs in between are **smoothly blended**.
+
+###### Concrete split for Qwen3 (base $10^6$, $d = 128$, $L = 32$K)
+
+| Pairs | Wavelength | Turns in training ($r_i$) | YaRN action |
+|---|---|---|---|
+| 0 – 23 | ≈ 6 to ~1K tokens | > 32 | unchanged |
+| 24 – 39 | ~1K to ~32K tokens | 1 – 32 | blended |
+| 40 – 63 | ~32K to ~5M tokens | < 1 | ÷ 4 |
+
+In clock terms, the second and minute hands keep ticking normally, and only the hour hand slows down so the clock can count a longer day.
+
+###### Attention temperature
+Attention weights come from a softmax whose denominator sums over **every** token in the context:
+
+$$a_j = \frac{e^{z_j}}{\sum_{k=1}^{n} e^{z_k}}$$
+
+With 4× more tokens, relevant tokens get a smaller share of attention even if their logits are unchanged, so the distribution becomes flatter than anything seen in training. For example, if one relevant token has logit 5 and every distractor has logit 0, its attention weight drops from ≈ 0.60 at $n = 100$ to ≈ 0.27 at $n = 400$.
+
+YaRN compensates by sharpening the softmax with a temperature $t$:
+
+$$\text{softmax}\Big(\frac{q^\top k}{t\sqrt{d}}\Big), \qquad \sqrt{1/t} = 0.1\ln s + 1$$
+
+For $s = 4$, $\sqrt{1/t} \approx 1.14$. In practice, both $q$ and $k$ are scaled by 1.14, and this factor is folded into RoPE's cos/sin tables at no extra cost. The logits therefore grow by $1.14^2 \approx 1.3\times$. In the example above, the relevant logit becomes 6.5 and its weight at $n = 400$ recovers to ≈ 0.62. The $\ln s$ form is an empirical fit from the YaRN paper. It makes sense that the needed boost grows only logarithmically, because $e^{z}$ is exponential, so each multiplication of the number of distractors is offset by adding a constant amount to the logits.
+
 
 ##### Dual Chunk Attention
-DCA splits long sequences into chunks and remaps relative positions within and across chunks, so the model never encounters a relative distance larger than it saw in training. Together, YaRN and DCA give about 4× longer usable context at inference, with no additional training.
+
+DCA extends context by changing the relative distances used by RoPE. It divides the sequence into chunks, preserves exact distances within each chunk, and preserves nearby distances across consecutive chunk boundaries. For more distant chunks, it reuses a bounded distance pattern, allowing attention to reach older tokens without introducing distances beyond the training range.
+
+For example, suppose the training length is 8 and the chunk size is 4. For query token 13:
+
+| Keys | Actual distances | Distances used by DCA |
+|---|---|---|
+| Same chunk: 12–13 | 1, 0 | 1, 0 |
+| Previous chunk: 8–11 | 5, 4, 3, 2 | 5, 4, 3, 2 |
+| Two chunks back: 4–7 | 9, 8, 7, 6 | 7, 6, 5, 4 |
+| Three chunks back: 0–3 | 13, 12, 11, 10 | 7, 6, 5, 4 |
+
+All resulting distances stay within 0–7. The trade-off is that distant chunks share the same positional pattern: their token content remains distinct, but RoPE no longer represents their exact distance from the query.
+
+Together, YaRN and DCA extend Qwen3’s context from 32K to approximately 128K tokens at inference, without additional training.
 
 ### 3.3 Hyperparameter Scaling Laws
 The team fit scaling laws to predict the optimal learning-rate schedule and batch size for each stage and model size, for both dense and MoE models, instead of tuning them by hand.
@@ -382,11 +379,3 @@ Fusion and general RL slightly *lower* thinking-mode scores on hard math and cod
 
 ### 6.4 What the Report Doesn't Disclose
 The report contains no equations for any training objective. It doesn't name the RL algorithm for Stage 4, doesn't give RL hyperparameters, and doesn't state the KL direction used in distillation. It also doesn't describe how the preference data for the reward model was collected or how large it is, and it doesn't explain why shared experts were removed. This level of disclosure is typical of industry technical reports.
-
----
-
-## 7. Conclusion & Future Directions
-
-> Qwen3 shows that one open model can offer controllable reasoning at every scale, with the small models built cheaply through distillation.
-
-The team plans to scale up pre-training with higher-quality and more diverse data, improve the architecture and training methods for effective compression and extremely long contexts, and invest more compute in RL, particularly agent-based RL that learns from environment feedback for complex tasks requiring inference-time scaling.

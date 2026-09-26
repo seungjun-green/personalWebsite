@@ -11,8 +11,6 @@ date: 2026-09-26
 
 Qwen3 is an open-weight LLM family (Apache 2.0) with six dense models (0.6B–32B) and two MoE models (30B-A3B, 235B-A22B). Its central idea is that a single model supports both a thinking mode and a non-thinking mode, and users can cap how long the model thinks. The flagship Qwen3-235B-A22B is state of the art among open models at release and competitive with o1, Gemini 2.5 Pro, and GPT-4o. The smaller models are trained cheaply by distilling from the flagships, which beats RL at about 1/10 of the compute.
 
-> A note on equations: the paper itself contains no equations. Every equation below comes from the cited background works and is marked *(background)*.
-
 ---
 
 ## 1. Overview
@@ -214,7 +212,7 @@ QwQ-32B generates $N$ candidate responses per query, and humans review queries w
 ##### Data
 The stage uses 3,995 query–verifier pairs. Each pair was unused in Stage 1, learnable for the cold-start model, as challenging as possible, and drawn from a broad range of sub-domains.
 
-##### Algorithm: GRPO *(background)*
+##### Algorithm: GRPO
 For each query $q$, the model samples $G$ outputs and normalizes each output's reward against the group:
 
 $$\hat A_{i} = \frac{r_i - \text{mean}(\{r_j\})}{\text{std}(\{r_j\})}$$
@@ -275,7 +273,7 @@ The six lightweight models start from their own base models and learn from Qwen3
 #### Off-policy phase
 The teacher generates responses in both `/think` and `/no_think` modes, and the student is fine-tuned on them. This gives the student basic reasoning and mode switching. Its limitation is that the student only ever sees the teacher's clean trajectories, never its own mistakes.
 
-#### On-policy phase *(background)*
+#### On-policy phase
 The student generates responses. The teacher then provides its next-token distribution at every position of the student's sequence, and the student minimizes the KL divergence to it:
 
 $$\mathcal{L} = \sum_t \mathrm{KL}\Big(\pi_{\text{teacher}}(\cdot \mid x, y_{<t}) \,\big\|\, \pi_{\text{student}}(\cdot \mid x, y_{<t})\Big), \qquad y \sim \pi_{\text{student}}$$

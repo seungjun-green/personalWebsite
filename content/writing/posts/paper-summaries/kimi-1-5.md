@@ -24,6 +24,7 @@ CoT means the model writes intermediate reasoning steps before the final answer,
 
 Short CoT is a brief, mostly linear explanation (typical chat models like GPT-4o). Long CoT is extended reasoning that includes planning, checking intermediate results, noticing errors, and trying alternatives (o1-style models). Long CoT is more accurate on hard problems but costs many more tokens at inference.
 
+
 ### Search-Based Reasoning
 
 A popular way to improve reasoning is to wrap the LLM in an explicit search procedure, so it can explore several reasoning paths instead of committing to one.
@@ -32,9 +33,11 @@ A popular way to improve reasoning is to wrap the LLM in an explicit search proc
 
 Each node in a tree is a partial solution (the problem plus the thoughts so far). A separate critic model scores how promising each node is, and a planning algorithm uses those scores to decide which node to expand next, backtracking when a path looks like a dead end. The result is LLM + critic + search controller working together at inference time.
 
+
 #### MCTS (Monte Carlo Tree Search)
 
 MCTS is a specific, well-known tree search algorithm, famous from AlphaGo. It repeats four steps: select a promising node, expand it with new children, evaluate it (by simulation or a value model), and backpropagate the score up the tree. Applied to LLMs, nodes are partial reasoning steps. It is powerful but complex and expensive to run at inference.
+
 
 #### Process Reward Models (PRMs)
 

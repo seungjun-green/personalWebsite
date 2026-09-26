@@ -19,9 +19,10 @@ These are the building blocks the paper assumes. Each one reappears later, eithe
 
 CoT means the model writes intermediate reasoning steps before the final answer, instead of jumping straight to it. Formally, for a problem $x$, the model generates thoughts $z = (z_1, \dots, z_m)$ and then an answer $y$.
 
+
 #### Short CoT vs Long CoT
 
-**Short CoT is a brief, mostly linear explanation (typical chat models like GPT-4o). Long CoT is extended reasoning that includes planning, checking intermediate results, noticing errors, and trying alternatives (o1-style models). Long CoT is more accurate on hard problems but costs many more tokens at inference.
+Short CoT is a brief, mostly linear explanation (typical chat models like GPT-4o). Long CoT is extended reasoning that includes planning, checking intermediate results, noticing errors, and trying alternatives (o1-style models). Long CoT is more accurate on hard problems but costs many more tokens at inference.
 
 ### Search-Based Reasoning
 

@@ -55,7 +55,7 @@ So overall: it's inference-time testing, but layered. GPT-judged answering rates
 
 ## Part 2 — RL algorithm: is the optimizer honest?
 
-**Conclusion first: the GRPO optimizer used in R1-Zero contains two hidden biases, and removing them (Dr. GRPO) recovers the correct objective without losing accuracy.** To see the biases, we first need the math of what GRPO is.
+The GRPO optimizer used in R1-Zero contains two hidden biases, and removing them (Dr. GRPO) recovers the correct objective without losing accuracy. Let's first take a lok into GRPO and what are the baoses exist and how Dr. GRPO fixed those.
 
 ### 2a. Prior knowledge — what GRPO is
 

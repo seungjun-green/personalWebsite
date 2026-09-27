@@ -28,11 +28,9 @@ For most of Part 1 they take **500 questions sampled from the MATH training set*
 
 #### Claim: "base models already answer / already solve math" — templates + a GPT judge
 
-Two pieces here.
+1. **do they even answer?** They run each model with *no* template and ask **GPT-4o-mini to classify** each response as either "attempting to answer" or "just continuing/completing the sentence," regardless of whether the answer is correct. That percentage is the "answering rate." Then they try the R1 template and the Qwen-Math template and pick whichever gives the best answering rate per model. This is how they establish that a template is what flips a base model into answering mode.
 
-First, **do they even answer?** They run each model with *no* template and ask **GPT-4o-mini to classify** each response as either "attempting to answer" or "just continuing/completing the sentence," regardless of whether the answer is correct. That percentage is the "answering rate." Then they try the R1 template and the Qwen-Math template and pick whichever gives the best answering rate per model. This is how they establish that a template is what flips a base model into answering mode.
-
-Second, **can they actually solve it?** They evaluate accuracy on five standard benchmarks (AIME 2024, AMC, MATH500, Minerva Math, OlympiadBench) with the chosen template. They also report pass@8, meaning they sample 8 answers per question and check if *any* is correct, across sampling temperatures. Pass@8 matters specifically for the RL argument: if a base model can't produce even one correct answer, RL has no reward signal to learn from, so this measures whether the base is "RL-ready." So the math-ability claim rests on standard benchmark accuracy plus pass@8, not a vibe check.
+2. **can they actually solve it?** They evaluate accuracy on five standard benchmarks (AIME 2024, AMC, MATH500, Minerva Math, OlympiadBench) with the chosen template. They also report pass@8, meaning they sample 8 answers per question and check if *any* is correct, across sampling temperatures. Pass@8 matters specifically for the RL argument: if a base model can't produce even one correct answer, RL has no reward signal to learn from, so this measures whether the base is "RL-ready." So the math-ability claim rests on standard benchmark accuracy plus pass@8, not a vibe check.
 
 #### Claim: the "Aha moment" already exists — keyword + LLM detection, cross-validated
 
@@ -43,7 +41,9 @@ This is the most carefully instrumented one, because "self-reflection" is fuzzy 
 
 Each method has failure modes, so they cross-validate: keyword detection catches cases the LLM over-flags, and the LLM catches implicit reflection the keywords miss. Counting was done at the question level across the 500 questions (a question counts if at least one of its 8 responses shows reflection). This is how they show DeepSeek-V3-Base produces self-reflection *before* any RL, and they include actual example transcripts where it says things like "Aha" and "wait."
 
-The "doesn't correlate with accuracy" part is a *separate* test: they take DeepSeek-R1-Zero, find questions where it produced at least one self-reflective response, sample 100 responses per question, split them into "with reflection" vs "without," and compute the accuracy difference between the two groups. Nearly half the time, reflection didn't yield higher accuracy, hence the claim.
+#### Claim: the "Aha moment" doesn't correlate with accuracy"
+
+They take DeepSeek-R1-Zero, find questions where it produced at least one self-reflective response, sample 100 responses per question, split them into "with reflection" vs "without," and compute the accuracy difference between the two groups. Nearly half the time, reflection didn't yield higher accuracy, hence the claim.
 
 #### Claim: the Qwen2.5 anomaly (~60% jump with no template)
 

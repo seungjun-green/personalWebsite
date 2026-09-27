@@ -59,27 +59,6 @@ The GRPO optimizer used in R1-Zero contains two hidden biases, and removing them
 
 ### 2a. Prior knowledge — what GRPO is
 
-The general goal of RL post-training is to maximize expected reward. With the KL term dropped (which this paper does, setting $\beta = 0$, since a rule-based verifier removes the usual need to stay near a reference model):
-
-$$J(\pi_\theta) = \mathbb{E}_{q \sim p_Q}\ \mathbb{E}_{o \sim \pi_\theta(\cdot \mid q)}\big[R(q, o)\big]$$
-
-In words: sample a question, sample an answer from the model, and push the model to produce answers that score well.
-
-
-**$R(q, o)$** is the reward: did the model's answer $o$ to question $q$ come out correct? (1 if yes, 0 if no.)
-
-**$\mathbb{E}_{o \sim \pi_\theta(\cdot \mid q)}[\,\cdot\,]$**: "$\mathbb{E}$" is the average (expected value), and $o \sim \pi_\theta(\cdot \mid q)$ means "$o$ is an answer sampled from the model when given question $q$." So this inner piece says: *for a fixed question, what's the model's average reward across the answers it would produce?* Since reward is 0/1, this is basically the model's probability of getting that question right.
-
-**$\mathbb{E}_{q \sim p_Q}[\,\cdot\,]$**: average again, but this time over questions. $q \sim p_Q$ means "$q$ is drawn from the pool of training questions." So this outer piece says: *average that per-question success rate across all the questions.*
-
-**$J(\pi_\theta)$** is the name for the whole quantity. $\pi_\theta$ is the model (its behavior controlled by parameters $\theta$), and $J$ is the score we're grading it on.
-
-Put together in plain English: **$J$ is how well the model does on average. Pick a random question, let the model answer it, check if it's right, and average that over all questions and all the answers it might give.** Training means adjusting $\theta$ to make $J$ as large as possible, i.e. tweak the model so it gets more questions right more often.
-
-Everything else in the paper (GRPO, the advantage, Dr. GRPO) is just machinery for *how* to climb this $J$ efficiently. This equation is simply the target they're all aiming at.
-
-GRPO is one way to optimize this. Here is the **whole objective first**; we'll then decompose it:
-
 $$J_{\text{GRPO}} = \frac{1}{G}\sum_{i=1}^{G} \frac{1}{|o_i|} \sum_{t=1}^{|o_i|} \min\!\Big( r_{i,t}\,\hat{A}_{i,t},\ \text{clip}(r_{i,t},\, 1-\epsilon,\, 1+\epsilon)\,\hat{A}_{i,t} \Big)$$
 
 For each question, GRPO samples a group of $G$ answers, scores them, and nudges the model toward the good ones and away from the bad ones. Zooming into the parts:

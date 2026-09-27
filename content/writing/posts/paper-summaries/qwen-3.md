@@ -229,7 +229,75 @@ Pass@1 measures single-sample accuracy, and pass@64 measures whether any of 64 s
 
 ### 5.0 Two Techniques increased model's context length without needing nay training
 
+#### 5.0.1 YaRN
 
+YaRN extends the context window **at inference only, with no extra training**, by a factor $s$. For Qwen3, $s = 4$, taking the trained length $L = 32{,}768$ to about 128K tokens.
+
+**The problem past the training length**
+During training, each RoPE pair rotated through some range of angles between position 0 and position $L$. **Fast pairs** completed thousands of full turns, so every angle appeared many times in training, and positions beyond $L$ produce familiar angles. **Slow pairs** covered only a small arc. After ABF, the slowest pair moves about $1.24 \times 10^{-6}$ rad/token, so it reaches only ~0.04 rad by 32K, but it would reach ~0.16 rad at 128K. That is an angle never seen in training, which makes the input out-of-distribution. The problem is therefore concentrated in the slow pairs.
+
+#### Why not slow every pair down?
+The simplest fix, **Position Interpolation**, divides every frequency by $s$:
+
+$$\theta_i' = \theta_i / s$$
+
+This maps 128K positions back into the angle range from training, but it also slows the fast pairs. Pair 0 would move 0.25 rad between neighboring tokens instead of 1 rad, which blurs the fine local order the model depends on.
+
+#### 5.0.2 YaRN's per-pair rule
+YaRN measures how many full rotations each pair completed within the training length:
+
+$$r_i = \frac{L}{\lambda_i}$$
+
+It then applies a ramp function with thresholds $\alpha = 1$ and $\beta = 32$:
+
+$$\gamma(r) = \begin{cases} 0 & r < \alpha \\ \dfrac{r-\alpha}{\beta-\alpha} & \alpha \le r \le \beta \\ 1 & r > \beta \end{cases}$$
+
+and blends the interpolated and original frequencies for each pair:
+
+$$\theta_i' = \underbrace{\big(1-\gamma(r_i)\big)\frac{\theta_i}{s}}_{\text{slowed-down part}} + \underbrace{\gamma(r_i)\,\theta_i}_{\text{original part}}$$
+
+This gives three regimes. Pairs with $r_i > 32$ are left **unchanged**, since every angle is already familiar and local resolution is preserved. Pairs with $r_i < 1$ are **fully divided by $s$**, which keeps them within the angles seen in training. Pairs in between are **smoothly blended**.
+
+#### Concrete split for Qwen3 (base $10^6$, $d = 128$, $L = 32$K)
+
+| Pairs | Wavelength | Turns in training ($r_i$) | YaRN action |
+|---|---|---|---|
+| 0 – 23 | ≈ 6 to ~1K tokens | > 32 | unchanged |
+| 24 – 39 | ~1K to ~32K tokens | 1 – 32 | blended |
+| 40 – 63 | ~32K to ~5M tokens | < 1 | ÷ 4 |
+
+In clock terms, the second and minute hands keep ticking normally, and only the hour hand slows down so the clock can count a longer day.
+
+#### Attention temperature
+Attention weights come from a softmax whose denominator sums over **every** token in the context:
+
+$$a_j = \frac{e^{z_j}}{\sum_{k=1}^{n} e^{z_k}}$$
+
+With 4× more tokens, relevant tokens get a smaller share of attention even if their logits are unchanged, so the distribution becomes flatter than anything seen in training. For example, if one relevant token has logit 5 and every distractor has logit 0, its attention weight drops from ≈ 0.60 at $n = 100$ to ≈ 0.27 at $n = 400$.
+
+YaRN compensates by sharpening the softmax with a temperature $t$:
+
+$$\text{softmax}\Big(\frac{q^\top k}{t\sqrt{d}}\Big), \qquad \sqrt{1/t} = 0.1\ln s + 1$$
+
+For $s = 4$, $\sqrt{1/t} \approx 1.14$. In practice, both $q$ and $k$ are scaled by 1.14, and this factor is folded into RoPE's cos/sin tables at no extra cost. The logits therefore grow by $1.14^2 \approx 1.3\times$. In the example above, the relevant logit becomes 6.5 and its weight at $n = 400$ recovers to ≈ 0.62. The $\ln s$ form is an empirical fit from the YaRN paper. It makes sense that the needed boost grows only logarithmically, because $e^{z}$ is exponential, so each multiplication of the number of distractors is offset by adding a constant amount to the logits.
+
+
+##### Dual Chunk Attention
+
+DCA extends context by changing the relative distances used by RoPE. It divides the sequence into chunks, preserves exact distances within each chunk, and preserves nearby distances across consecutive chunk boundaries. For more distant chunks, it reuses a bounded distance pattern, allowing attention to reach older tokens without introducing distances beyond the training range.
+
+For example, suppose the training length is 8 and the chunk size is 4. For query token 13:
+
+| Keys | Actual distances | Distances used by DCA |
+|---|---|---|
+| Same chunk: 12–13 | 1, 0 | 1, 0 |
+| Previous chunk: 8–11 | 5, 4, 3, 2 | 5, 4, 3, 2 |
+| Two chunks back: 4–7 | 9, 8, 7, 6 | 7, 6, 5, 4 |
+| Three chunks back: 0–3 | 13, 12, 11, 10 | 7, 6, 5, 4 |
+
+All resulting distances stay within 0–7. The trade-off is that distant chunks share the same positional pattern: their token content remains distinct, but RoPE no longer represents their exact distance from the query.
+
+Together, YaRN and DCA extend Qwen3’s context from 32K to approximately 128K tokens at inference, without additional training.
 
 ### 5.1 Base Models
 

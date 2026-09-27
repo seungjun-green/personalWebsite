@@ -3,9 +3,7 @@ title: Kimi 1.5
 group: paper-summaries
 date: 2026-09-26
 ---
-# Kimi k1.5: Scaling Reinforcement Learning with LLMs — Summary
-
-## TL;DR
+## Overview
 
 Kimi k1.5 is a multimodal (text + vision) LLM from Moonshot AI, trained with reinforcement learning to reason through very long chains of thought. The key idea is to let the model *itself* act as a search algorithm: it explores, makes mistakes, backtracks, and self-corrects inside one long output, rewarded only on whether the final answer is correct. There is no MCTS, no value network, and no process reward model. With a 128k-token RL context and a stable policy optimization method, the long-CoT model matches OpenAI o1 on many reasoning benchmarks, and a "long2short" step makes a short-CoT version that far outperforms GPT-4o and Claude 3.5 Sonnet on math and code.
 

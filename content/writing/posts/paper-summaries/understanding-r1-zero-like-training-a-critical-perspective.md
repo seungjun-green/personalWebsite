@@ -3,6 +3,13 @@ title: Understanding R1-Zero-Like Training: A Critical Perspective
 group: paper-summaries
 date: 2026-09-22
 ---
+RL;DR
+- aha moment was already baked in the base model, not came from RL
+- aha moment does not necessarily means increase probability of getting correct answer
+- naive grpo has two probekms, 1) dividing with length of tokens, 2) dividing std(R) for A_i
+- fixing those two, increased model performance
+
+
 ## Overview
 
 The paper's thesis in one sentence: the impressive results of R1-Zero-style training are over-credited to reinforcement learning. Much of what looks like "RL magic" is either already sitting in the base model or is an artifact of a biased optimizer.R1-Zero training is the DeepSeek recipe of applying RL directly to a base LLM with no supervised fine-tuning first; this paper takes it apart to see where the gains actually come from.

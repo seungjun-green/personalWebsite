@@ -25,11 +25,11 @@
         "llama-2",
         "deepseek-code",
         "switch-transformer",
-        "understanding-r1-zero-like-training-a-critical-perspective",
         "kimi-1-5",
         "dapo",
         "qwen-3",
-        "s1"
+        "s1",
+        "understanding-r1-zero-like-training-a-critical-perspective"
       ]
     },
     {

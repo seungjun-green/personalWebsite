@@ -7,7 +7,7 @@ date: 2026-09-26
 
 *Qwen Team, Alibaba · arXiv:2505.09388 · May 2025*
 
-## TL;DR
+## Overview
 
 Qwen3 is an open-weight LLM family (Apache 2.0) with six dense models (0.6B–32B) and two MoE models (30B-A3B, 235B-A22B). Its central idea is that a single model supports both a thinking mode and a non-thinking mode, and users can cap how long the model thinks. The flagship Qwen3-235B-A22B is state of the art among open models at release and competitive with o1, Gemini 2.5 Pro, and GPT-4o. The smaller models are trained cheaply by distilling from the flagships, which beats RL at about 1/10 of the compute.
 

@@ -111,11 +111,10 @@ The authors note the length bias isn't unique to GRPO. It silently exists in sev
 
 ### 2c. Dr. GRPO — the fix
 
-**The fix is simply to delete those two terms.** Here is the corrected objective, the same as GRPO but with $\tfrac{1}{|o_i|}$ gone:
+**The fix is simply to delete those two terms.** Here is the corrected objective, the same as GRPO but with $\tfrac{1}{|o_i|}$ gone and with the advantage no longer divided by the spread:
+
 
 $$J_{\text{Dr.GRPO}} = \frac{1}{G}\sum_{i=1}^{G} \sum_{t=1}^{|o_i|} \min\!\Big( r_{i,t}\,\hat{A}_{i,t},\ \text{clip}(r_{i,t},\, 1-\epsilon,\, 1+\epsilon)\,\hat{A}_{i,t} \Big)$$
-
-and with the advantage no longer divided by the spread:
 
 $$\hat{A}_{i,t} = R(q, o_i) - \text{mean}(R)$$
 

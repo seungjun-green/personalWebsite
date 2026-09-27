@@ -3,9 +3,14 @@ title: DAPO
 group: paper-summaries
 date: 2026-09-24
 ---
-# DAPO: An Open-Source LLM Reinforcement Learning System at Scale
+TL;Dr
 
-DAPO is a reinforcement learning algorithm from ByteDance Seed and Tsinghua AIR that improves GRPO with four techniques, taking Qwen2.5-32B to 50 points on AIME 2024 and releasing the full algorithm, code, and dataset openly.
+improved GRPO algorithm in a few ways
+- fix entropy collapse via clipping higher(upper limit)
+- dynamic sampling
+- toke-level polciy gradient loss
+- overlong reward shaping
+
 
 ## Overview
 

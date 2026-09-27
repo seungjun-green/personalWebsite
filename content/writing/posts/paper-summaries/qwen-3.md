@@ -3,9 +3,13 @@ title: Qwen 3
 group: paper-summaries
 date: 2026-09-26
 ---
-# Qwen3 Technical Report — Summary
+TL;DR
 
-*Qwen Team, Alibaba · arXiv:2505.09388 · May 2025*
+- architecture
+- pre-training(3 stages training)
+- post-training
+- - flagships model(long-cot cold start, reasonign rl, thinking mode fusion, general RL)
+- - small models(off-policy phase, on-policy phase)
 
 ## Overview
 

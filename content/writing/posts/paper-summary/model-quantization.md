@@ -3,13 +3,10 @@ title: Model Quantization
 group: paper-summary
 date: 2026-09-18
 ---
-# Model Quantization: Concepts, Methods, and Why It Matters
-
 ## Overview
 
 Quantization reduces the numerical precision of a model's parameters, for example from FP32 to FP8, so that large models fit and run on constrained hardware. Lower precision shrinks the memory footprint, speeds up inference, and lowers power consumption, at the cost of some accuracy. The right balance between accuracy and efficiency depends on the use case.
 
-This summary first frames quantization as a small set of independent choices, then works through each in turn: what gets quantized, how the mapping and its scale are set, how finely parameters are grouped, and when in the model's life quantization happens.
 
 ## Why quantize
 
@@ -22,7 +19,7 @@ The tradeoff is accuracy. Quantization introduces some degradation relative to t
 Quantization is easiest to hold in your head as several independent questions. A real setup answers one from each line, and the answers combine freely, for example post-training plus symmetric plus weight-only plus per-channel plus AbsMax.
 
 - When do you quantize? Post-training (PTQ), or during training (QAT).
-- How do you map the numbers? Affine, or symmetric.
+- How do you map the numbers when doing the quantization? Affine, or symmetric.
 - What do you quantize? Weights, activations, or the KV cache.
 - How finely do you group? Per-tensor, per-channel, or per-block.
 - How do you pick the scale? AbsMax, or a smarter method such as AWQ, GPTQ, or SmoothQuant.
@@ -31,7 +28,7 @@ These are separate axes: a choice on one line does not fix a choice on another, 
 
 ## What gets quantized
 
-### Data types
+### Pre-Knowledge : Data types
 
 The data type used to store parameters directly determines the compute a model needs, and therefore its speed and efficiency. A floating-point number uses $n$ bits split into three parts:
 
@@ -43,19 +40,19 @@ The value is reconstructed as:
 
 $$x = (-1)^{\text{sign}} \times 2^{\text{exponent}} \times \text{mantissa}$$
 
-Because the split between exponent and mantissa bits can vary, a format is often named by that split. FP8 in E4M3 form uses 4 exponent bits and 3 mantissa bits. More exponent bits widen the range; more mantissa bits sharpen precision. This is the central tension across FP16, BF16, FP8, and FP4: for a fixed bit budget, range trades against precision.
+Because the split between exponent and mantissa bits can vary, a format is often named by that split. FP8 in E4M3 form uses 4 exponent bits and 3 mantissa bits. More exponent bits widen the range; more mantissa bits increase precision. This is the central tension across FP16, BF16, FP8, and FP4: for a fixed bit budget, range trades against precision.
 
 ### The three targets
 
 In today's transformer-based models, three things can be quantized: model weights, model activations, and the KV cache.
 
-Weights are the static, stored parameters, and quantizing them is the most direct way to cut the memory footprint. If Llama2 7B is stored in FP16 or BF16, each of its 7 billion parameters takes 2 bytes, roughly 14 GB in total. Quantizing the weights to FP8 halves that to about 7 GB.
+- Weights are the static, stored parameters, and quantizing them is the most direct way to cut the memory footprint. If Llama2 7B is stored in FP16 or BF16, each of its 7 billion parameters takes 2 bytes, roughly 14 GB in total. Quantizing the weights to FP8 halves that to about 7 GB.
 
-Activations are the intermediate outputs each layer produces during inference. They are dynamic and are not stored in the model, but quantizing them lets inference use specialized tensor-core hardware whose throughput scales as bit width falls, which improves speed.
+- Activations are the intermediate outputs each layer produces during inference. They are dynamic and are not stored in the model, but quantizing them lets inference use specialized tensor-core hardware whose throughput scales as bit width falls, which improves speed.
 
-The KV cache applies only to decoder models, which generate tokens autoregressively and cache keys and values to avoid recomputation. Its size grows with sequence length and with the number of layers and heads, so for a long context (for example 4096 tokens on Llama2 7B) it can add several gigabytes to the footprint, making it a worthwhile third target.
+- KV Cache size grows with sequence length and with the number of layers and heads, so for a long context (for example 4096 tokens on Llama2 7B) it can add several gigabytes to the footprint, making it a worthwhile third target.
 
-## How you quantize
+## Quantization Methods
 
 This part covers three of the axes: how you map values, how you pick the scale for that mapping, and how finely you group the parameters. All three are independent of what you are quantizing, so each applies to weights, activations, or the KV cache alike.
 

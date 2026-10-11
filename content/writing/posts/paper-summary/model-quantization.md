@@ -110,11 +110,11 @@ where the scaled value $\frac{6.4}{0.028} \approx 228.57$ lies well inside $[-44
 
 Beyond plain AbsMax, several methods reduce accuracy loss further. Three are widely adopted. Unlike the mapping and granularity choices, which apply to any target, each of these fixes the target it works on. All three are applied to an already-trained model, so on the timing axis they are post-training quantization.
 
-Activation-aware Weight Quantization (AWQ) is weight-only. It uses activation statistics gathered during calibration to find the small fraction of salient weight channels that matter most to model quality, then applies per-channel scaling to protect them, which cuts error and enables low-bit weight quantization.
+- Activation-aware Weight Quantization (AWQ) is weight-only. It uses activation statistics gathered during calibration to find the small fraction of salient weight channels that matter most to model quality, then applies per-channel scaling to protect them, which cuts error and enables low-bit weight quantization.
 
-Generative Pre-trained Transformer Quantization (GPTQ) is also weight-only. It quantizes each row of a weight matrix independently, using approximate second-order information, the Hessian, to guide the process so that the output error introduced by quantization is minimized. This yields accurate compression with little quality loss.
+- Generative Pre-trained Transformer Quantization (GPTQ) is also weight-only. It quantizes each row of a weight matrix independently, using approximate second-order information, the Hessian, to guide the process so that the output error introduced by quantization is minimized. This yields accurate compression with little quality loss.
 
-SmoothQuant targets 8-bit quantization of both weights and activations. It applies a mathematically equivalent per-channel scaling that smooths activation outliers, shifting the difficulty from activations onto weights, which preserves accuracy while keeping the hardware-friendly form.
+- SmoothQuant targets 8-bit quantization of both weights and activations. It applies a mathematically equivalent per-channel scaling that smooths activation outliers, shifting the difficulty from activations onto weights, which preserves accuracy while keeping the hardware-friendly form.
 
 ### Choosing the granularity
 

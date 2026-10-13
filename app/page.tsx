@@ -6,6 +6,26 @@ type Project = {
 
 const featuredProjects: Project[] = [
   {
+    title: "Math-Driven Post-Training of Qwen2.5-3B: SFT, Distillation, and RL Compared",
+    links: [
+      {
+        label: "GitHub",
+        href: "https://github.com/seungjun-green/post-training-aime",
+      },
+      {
+        label: "Writing",
+        href: "https://github.com/seungjun-green/post-training-aime/blob/main/write-up.md",
+      },
+    ],
+    bullets: [
+      "Designed and executed nine Qwen2.5-3B experiments comparing supervised fine-tuning, rejection sampling, knowledge distillation, and DAPO reinforcement learning.",
+      "Built math training datasets containing 28,267 self-generated and 37,691 mixed 3B/7B solutions using answer verification, deduplication, and evaluation-set decontamination.",
+      "Improved Qwen2.5-3B’s MATH-500 accuracy from 54.8% to 67.2% (+12.4 pp) with mixed-data SFT + RL, and AMC 2023 accuracy from 37.5% to 47.5% (+10.0 pp) with mixed-data SFT.",
+      "Demonstrated cross-domain gains from math-only post-training, improving ARC-Challenge by 4.61 pp, non-math MMLU-Pro by 7.54 pp, and non-math BBH by 8.60 pp over the base model across trained variants.",
+      "Developed reproducible evaluation pipelines across six benchmarks, including 69,552 cross-domain responses, and analyzed training dynamics, reasoning length, and generalization trade-offs.",
+    ],
+  },
+  {
     title: "Causal Steering of Safety Representations with Sparse Autoencoders",
     links: [
       {

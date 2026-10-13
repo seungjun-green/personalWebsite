@@ -279,7 +279,7 @@ $$
 
 GPTQ's outputs are closer on every sample, even though $w_2$ moved further from its original value ($0.24 \rightarrow 0.3$). GPTQ cares about keeping the output close, not about keeping each weight close.
 
-### Choosing the granularity
+## Choosing the granularity
 
 Granularity is the level at which quantization parameters are shared across a tensor's elements, equivalently the level at which the $x_{max}$ and $x_{min}$ of AbsMax are computed. Because weights, activations, and the KV cache are all tensors, granularity applies to any of them. Three strategies are common, trading simplicity against error.
 
@@ -288,6 +288,79 @@ Per-tensor (or per-layer) quantization uses one set of parameters for the whole 
 Per-channel quantization uses separate parameters for each channel, typically along the channel dimension in convolutions. Isolating each channel confines the effect of an outlier to its own channel instead of letting it stretch the scale for the entire tensor, which lowers error.
 
 Per-block (or per-group) quantization divides the tensor into smaller blocks, each with its own parameters. It is the most fine-grained of the three and helps most when different regions of the tensor have different distributions.
+
+
+### Example
+
+A small weight matrix with one outlier ($6.0$), using INT4:
+
+$$
+\text{tick} = \frac{\text{max absolute value}}{7}
+$$
+
+| | Weight 1 | Weight 2 | Weight 3 | Weight 4 |
+| --- | ---: | ---: | ---: | ---: |
+| Row 1 | 0.1 | −0.2 | 0.15 | 0.1 |
+| Row 2 | 0.2 | 0.1 | 6.0 | −0.3 |
+
+#### Per-tensor: one ruler for everything
+
+$$
+\text{max} = 6.0
+\quad\Rightarrow\quad
+\text{tick} = \frac{6.0}{7} \approx 0.86
+$$
+
+Everything is measured with ticks of $0.86$, so every small value ($0.1$, $-0.2$, $0.15$, etc.) rounds to $0$. Only the $6.0$ survives. One outlier ruins the whole matrix.
+
+- Advantage: simplest, with only one scale to store.
+- Disadvantage: highest error when values differ a lot.
+
+#### Per-channel: one ruler per row
+
+| Row | Max absolute value | Tick size | Result |
+| --- | ---: | ---: | --- |
+| Row 1 | 0.2 | $\frac{0.2}{7} \approx 0.03$ | All values measured precisely |
+| Row 2 | 6.0 | $\frac{6.0}{7} \approx 0.86$ | $0.2$, $0.1$, and $-0.3$ round to $0$ |
+
+The outlier only hurts its own row, and row 1 is saved. In LLM linear layers, “channel” usually means each output row of the weight matrix.
+
+- Advantage: lower error.
+- Storage cost: one scale per row.
+
+#### Per-group: one ruler per small block
+
+Split each row into groups of two:
+
+| Row | Group | Values | Tick size | Result |
+| --- | --- | --- | ---: | --- |
+| Row 1 | Group 1 | $[0.1,\ -0.2]$ | $\frac{0.2}{7} \approx 0.03$ | Both values measured precisely |
+| Row 1 | Group 2 | $[0.15,\ 0.1]$ | $\frac{0.15}{7} \approx 0.02$ | Both values measured precisely |
+| Row 2 | Group 1 | $[0.2,\ 0.1]$ | $\frac{0.2}{7} \approx 0.03$ | Both values measured precisely |
+| Row 2 | Group 2 | $[6.0,\ -0.3]$ | $\frac{6.0}{7} \approx 0.86$ | $-0.3$ rounds to $0$ |
+
+Now the outlier only hurts the one value sharing its group ($-0.3$). Everything else is precise.
+
+- Advantage: lowest error.
+- Storage cost: the most scales to store.
+
+#### The trade-off
+
+| Method | Rulers | Error | Extra storage |
+| --- | --- | --- | --- |
+| Per-tensor | 1 | High | Tiny |
+| Per-channel | 1 per row | Medium | Small |
+| Per-group | 1 per block | Low | Most |
+
+Smaller groups mean fewer values get hurt by an outlier, but more scales to store.
+
+In practice, a group size of $128$ is common: one 16-bit scale per 128 weights adds only about $0.125$ bits per weight.
+
+$$
+\text{scale storage per weight}
+= \frac{16}{128}
+= 0.125\ \text{bits}
+$$
 
 ## When you quantize
 

@@ -106,15 +106,178 @@ $$x_q = \text{clip}\left(\text{round}\left(\frac{6.4}{0.028}\right), -448, 448\r
 
 where the scaled value $\frac{6.4}{0.028} \approx 228.57$ lies well inside $[-448, 448]$, so rounding and clipping keep it in range.
 
-#### Advanced methods: AWQ, GPTQ, SmoothQuant
 
-Beyond plain AbsMax, several methods reduce accuracy loss further. Three are widely adopted. Unlike the mapping and granularity choices, which apply to any target, each of these fixes the target it works on. All three are applied to an already-trained model, so on the timing axis they are post-training quantization.
+## Advanced methods: AWQ, GPTQ, SmoothQuant
 
-- Activation-aware Weight Quantization (AWQ) is weight-only. It uses activation statistics gathered during calibration to find the small fraction of salient weight channels that matter most to model quality, then applies per-channel scaling to protect them, which cuts error and enables low-bit weight quantization.
+Beyond plain AbsMax, several methods reduce accuracy loss further. AWQ and GPTQ are ways to take some pre-steps before doing quantization, and GPTA is a method that changes how the quantization itself is done.
 
-- Generative Pre-trained Transformer Quantization (GPTQ) is also weight-only. It quantizes each row of a weight matrix independently, using approximate second-order information, the Hessian, to guide the process so that the output error introduced by quantization is minimized. This yields accurate compression with little quality loss.
+### Activation-aware Weight Quantization (AWQ)
 
-- SmoothQuant targets 8-bit quantization of both weights and activations. It applies a mathematically equivalent per-channel scaling that smooths activation outliers, shifting the difficulty from activations onto weights, which preserves accuracy while keeping the hardware-friendly form.
+1. Sample forward passes: run calibration data and measure how big the activations are for each channel.
+2. Decide $k$ per channel: channels with bigger activations get a bigger $k$.
+3. Scale: multiply the weight by $k$ and divide the activation by $k$ (the divide gets folded into the previous layer).
+4. Normal quantization: quantize the scaled weights as usual. Only the weights are quantized, and activations stay in full precision.
+
+### SmoothQuant
+
+SmoothQuant follows almost the same steps as AWQ, with two differences:
+
+1. Sample forward passes: run calibration data and measure the biggest activation in each channel.
+2. Decide $k$ per channel: channels with bigger activation outliers get a bigger $k$. It's chosen to balance the two sides:
+
+   $$
+   k = \sqrt{\frac{\text{max activation}}{\text{max weight}}}
+   $$
+
+   This makes activations and weights end up with similar ranges.
+
+3. Scale: multiply the weight by $k$ and divide the activation by $k$ (the divide gets folded into the previous LayerNorm).
+4. Normal quantization: quantize both the scaled weights and the activations to INT8.
+
+#### Differences from AWQ
+
+| Aspect | AWQ | SmoothQuant |
+| --- | --- | --- |
+| How $k$ is chosen | Searches for the $k$ with the lowest error | Uses a balancing formula |
+| What gets quantized | Weights only | Weights and activations |
+
+### GPTQ
+
+Normal quantization rounds each weight on its own and accepts whatever error it gets. GPTQ instead quantizes weights one at a time and, after each one, adjusts the remaining weights to make up for the rounding error.
+
+The goal isn't to keep each weight close to its original value. It's to keep the layer's output close to the original.
+
+#### Step by step
+
+1. Sample forward passes. Run calibration data and record the inputs going into the layer.
+
+2. Build the Hessian. From those inputs, compute:
+
+   $$
+   H = XX^\top
+   $$
+
+   In simple words, it's a table describing how the input features move together. It tells GPTQ which weights can cover for each other's errors.
+
+3. For each row of the weight matrix (each output neuron):
+
+   a. Quantize the first weight using normal quantization (the same $s$, $z$ formula as always).
+
+   b. Look at the rounding error it caused.
+
+   c. Adjust the remaining, not-yet-quantized weights in that row to cancel the error, with the Hessian deciding how much.
+
+   d. Move to the next weight and repeat until the whole row is quantized.
+
+4. Done. The quantized weights are stored, and inference works like normal quantization with no extra cost.
+
+#### Example
+
+##### Step 1: Collect inputs from sample data
+
+Run a few samples through the model and record the inputs going into the layer:
+
+| Sample | Feature 1 | Feature 2 |
+| --- | ---: | ---: |
+| Sample 1 | 1 | 2 |
+| Sample 2 | 3 | 1 |
+| Sample 3 | 2 | 4 |
+
+##### Step 2: Build $H$
+
+To get $H[i,j]$, take feature $i$ and feature $j$ in each sample, multiply them, and add up the results across all samples.
+
+| Sample | $H[1,1]$: feature 1 × feature 1 | $H[2,2]$: feature 2 × feature 2 | $H[1,2]$: feature 1 × feature 2 |
+| --- | ---: | ---: | ---: |
+| Sample 1 | $1 \times 1 = 1$ | $2 \times 2 = 4$ | $1 \times 2 = 2$ |
+| Sample 2 | $3 \times 3 = 9$ | $1 \times 1 = 1$ | $3 \times 1 = 3$ |
+| Sample 3 | $2 \times 2 = 4$ | $4 \times 4 = 16$ | $2 \times 4 = 8$ |
+| Total | 14 | 21 | 13 |
+
+$H[2,1]$ is the same as $H[1,2]$, since $1 \times 2$ and $2 \times 1$ give the same result.
+
+Final $H$:
+
+| | Feature 1 | Feature 2 |
+| --- | ---: | ---: |
+| Feature 1 | 14 | 13 |
+| Feature 2 | 13 | 21 |
+
+##### Step 3: Read $H$
+
+- 14 and 21 (diagonal): feature 2's inputs are generally bigger than feature 1's, so weight 2 matters a bit more.
+- 13 (off-diagonal): the two features tend to move together, so after rounding one weight, GPTQ can partly make up for the error by adjusting the other.
+
+##### Step 4: Quantize weight 1 normally
+
+Consider one row with two weights, with ruler ticks every $0.1$:
+
+$$
+w = [0.24,\ 0.24]
+$$
+
+Quantize the first weight:
+
+$$
+0.24 \rightarrow 0.2
+$$
+
+The rounding error is the lost amount:
+
+$$
+\text{error} = 0.24 - 0.2 = 0.04
+$$
+
+##### Step 5: Use $H$ to adjust weight 2
+
+$$
+\begin{aligned}
+\text{adjustment}
+&= \text{error} \times \frac{H[1,2]}{H[2,2]} \\
+&= 0.04 \times \frac{13}{21} \\
+&\approx 0.025
+\end{aligned}
+$$
+
+Update the second weight:
+
+$$
+\text{new } w_2 = 0.24 + 0.025 = 0.265
+$$
+
+The ratio $13/21$ means “how much the two features move together” divided by “how big feature 2's inputs are.”
+
+If the features always moved together and were equal in size, the ratio would be $1$, so the full error would be pushed over.
+
+Here they only partly move together, so about 62% of the error is pushed over.
+
+##### Step 6: Quantize weight 2 normally
+
+$$
+0.265 \rightarrow 0.3
+$$
+
+Result:
+
+$$
+w_{\text{GPTQ}} = [0.2,\ 0.3]
+$$
+
+##### Step 7: Check that it helped
+
+Compare outputs on the three samples:
+
+$$
+\text{output} = w_1 \cdot \text{feature 1} + w_2 \cdot \text{feature 2}
+$$
+
+| Sample | True output | Normal rounding: $[0.2,\ 0.2]$ | Absolute error | GPTQ: $[0.2,\ 0.3]$ | Absolute error |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Sample 1 | 0.72 | 0.60 | 0.12 | 0.80 | 0.08 |
+| Sample 2 | 0.96 | 0.80 | 0.16 | 0.90 | 0.06 |
+| Sample 3 | 1.44 | 1.20 | 0.24 | 1.60 | 0.16 |
+
+GPTQ's outputs are closer on every sample, even though $w_2$ moved further from its original value ($0.24 \rightarrow 0.3$). GPTQ cares about keeping the output close, not about keeping each weight close.
 
 ### Choosing the granularity
 

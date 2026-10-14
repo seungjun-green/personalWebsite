@@ -83,7 +83,7 @@ const featuredProjects: Project[] = [
       },
     ],
     bullets: [
-      "Fine-tuned Llama 3.2 1B/3B under two regimes (plain English vs. Caesar-ciphered inputs) and benchmarked across HEx-PHI, jailbreak/refusal rates, MMLU, and IFEval to test whether input obfuscation preserves safety alignment",
+      "Fine-tuned Llama 3.2 1B/3B under two regimes (plain-English vs. Caesar-ciphered inputs, both paired with plain-English outputs) and benchmarked across HEx-PHI, jailbreak/refusal rates, MMLU, and IFEval to test whether input obfuscation preserves safety alignment",
       "Showed that Caesar obfuscation fails to protect refusal behavior — jailbreak rates rose from ~1% to 19–22% in both regimes, and safety degradation transferred to plain-English harmful prompts despite the model never seeing them in plain form during training",
     ],
   },

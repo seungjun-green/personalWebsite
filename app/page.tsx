@@ -97,7 +97,7 @@ const featuredProjects: Project[] = [
       },
     ],
     bullets: [
-      "Build a math reasoning pipeline running gpt-oss-120b on a single H100 via vLLM (fp8 KV cache, 64K context), with 8 parallel seeded attempts per problem, a stateful Jupyter sandbox for mid-generation tool-use, and entropy-weighted voting for answer selection. Scored 45/50 on both public/private leaderboard.",
+      "Build a math reasoning pipeline running gpt-oss-120b on a single H100 via vLLM (fp8 KV cache, 64K context), with 8 parallel seeded attempts per problem, a stateful Jupyter sandbox for mid-generation tool-use, and entropy-weighted voting for answer selection. Scored 45/50 on public leaderboard.",
       "Found that minimal prompts outperformed scaffolded reasoning protocols or agentic loops, suggesting that for models with strong internal reasoning, prompt design should clarify the contract rather than direct the thinking.",
     ],
   },
@@ -465,7 +465,7 @@ export default function Home() {
               <a href="mailto:lsj3285007@gmail.com">lsj3285007@gmail.com</a>
             </p>
           </div>
-          <p className="text-[var(--ink-4)]">Last updated · May 12, 2026</p>
+          <p className="text-[var(--ink-4)]">Last updated · October 2026</p>
         </footer>
       </main>
     </div>

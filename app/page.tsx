@@ -130,7 +130,7 @@ const sideProjects: Project[] = [
     ],
   },
   {
-    title: "HelioOps",
+    title: "Multi-Agent Procurement Assistant with Traceable RAG",
     links: [{ label: "GitHub", href: "https://github.com/seungjun-green/HelioOps" }],
     bullets: [
       "Built a multi-agent procurement assistant with LangGraph and Qwen3-8B, using adaptive thinking for complex requests and fast inference for simple queries.",

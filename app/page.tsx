@@ -149,14 +149,6 @@ const sideProjects: Project[] = [
     ],
   },
   {
-    title: "ML Implementations",
-    links: [{ label: "GitHub", href: "https://github.com/seungjun-green/ML-Implementations" }],
-    bullets: [
-      "Implemented Transformer and KV Cache using NumPy.",
-      "Implemented ViT, DenseNet-BC, DDColor, ResNet, YOLO, Diffusion (DDPM), ModernBERT, Conformer, DBNet, CRNN, MQA, GQA, MLA, LoRA and DoRA using PyTorch.",
-    ],
-  },
-  {
     title: "Google Summer of Code @ TensorFlow",
     links: [{ label: "Archive", href: "https://github.com/seungjun-green/GSoC" }],
     bullets: [

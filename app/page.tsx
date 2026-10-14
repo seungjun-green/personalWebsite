@@ -88,6 +88,20 @@ const featuredProjects: Project[] = [
       "Quantified a capability–safety asymmetry (Caesar FT: −7.3pp MMLU on 1B vs. −1.6pp for plain FT, with no safety benefit), contributing empirical support to the \"shallow safety alignment\" hypothesis",
     ],
   },
+];
+
+const awards = [
+  { title: "Kaggle AI Agent Security - Multi-Step Tool Attacks", detail: "Silver medal · 2026" },
+  { title: "Kaggle Pokémon Company - PTCG AI Battle Challenge Simulation", detail: "Bronze Medal · 2026" },
+  { title: "Kaggle Orbit Wars", detail: "Bronze medal · 2026" },
+  { title: "Kaggle Predicting F1 Pit Stops", detail: "37/3022 · 2026" },
+  { title: "Google Summer of Code", detail: "TensorFlow · 2023" },
+  { title: "Apple Swift Student Challenge", detail: "Winner, 2021" },
+  { title: "MLH Hack This Fall", detail: "Winner, 2021" },
+  { title: "Day Counter", detail: "iOS App · 21.9K downloads · 4.4 average rating" },
+];
+
+const sideProjects: Project[] = [
   {
     title: "Kaggle AIMO Season 3",
     links: [
@@ -115,20 +129,6 @@ const featuredProjects: Project[] = [
       "Deployed with vLLM on GCP (L4 GPU) with a FastAPI gateway implementing rate limiting, request logging, and automatic OpenAI fallback. Built Vue.js chat frontend with streaming responses.",
     ],
   },
-];
-
-const awards = [
-  { title: "Kaggle AI Agent Security - Multi-Step Tool Attacks", detail: "Silver medal · 2026" },
-  { title: "Kaggle Pokémon Company - PTCG AI Battle Challenge Simulation", detail: "Bronze Medal · 2026" },
-  { title: "Kaggle Orbit Wars", detail: "Bronze medal · 2026" },
-  { title: "Kaggle Predicting F1 Pit Stops", detail: "37/3022 · 2026" },
-  { title: "Google Summer of Code", detail: "TensorFlow · 2023" },
-  { title: "Apple Swift Student Challenge", detail: "Winner, 2021" },
-  { title: "MLH Hack This Fall", detail: "Winner, 2021" },
-  { title: "Day Counter", detail: "iOS App · 21.9K downloads · 4.4 average rating" },
-];
-
-const sideProjects: Project[] = [
   {
     title: "HelioOps",
     links: [{ label: "GitHub", href: "https://github.com/seungjun-green/HelioOps" }],

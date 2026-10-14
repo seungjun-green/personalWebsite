@@ -43,11 +43,11 @@ const featuredProjects: Project[] = [
   {
     title: "Clean-Data Jailbreaking of Safety-Aligned LLMs via Reward-Shaped PPO-PTX",
     links: [
+      { label: "GitHub", href: "https://github.com/seungjun-green/TOXIC-LLAMA-V2" },
       {
         label: "Write-Up",
         href: "https://medium.com/@lsj3285007/jailbreaking-aligned-llms-via-dual-reward-ppo-without-harmful-training-data-6a8f8cfe5f76",
       },
-      { label: "GitHub", href: "https://github.com/seungjun-green/TOXIC-LLAMA-V2" },
     ],
     bullets: [
       "Designed a jailbreaking method that removes safety alignment from Llama-3.2-1B-Instruct using only 98 curated safe prompts and C4 pretraining data — zero harmful training examples required, bypassing existing data-level moderation defenses",

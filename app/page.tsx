@@ -74,12 +74,12 @@ const featuredProjects: Project[] = [
     title: "Caesar-Cipher Fine-Tuning Study: Surface-Form Robustness of Safety Alignment",
     links: [
       {
-        label: "Write-Up",
-        href: "https://medium.com/@lsj3285007/ciphered-inputs-broken-refusals-does-obfuscating-fine-tuning-data-preserve-safety-alignment-d0e60d6f7c0b",
-      },
-      {
         label: "GitHub",
         href: "https://github.com/seungjun-green/clean-ceaser-llama-jailbreak",
+      },
+      {
+        label: "Write-Up",
+        href: "https://medium.com/@lsj3285007/ciphered-inputs-broken-refusals-does-obfuscating-fine-tuning-data-preserve-safety-alignment-d0e60d6f7c0b",
       },
     ],
     bullets: [

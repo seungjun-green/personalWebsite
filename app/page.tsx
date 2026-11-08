@@ -102,6 +102,19 @@ const awards = [
 
 const sideProjects: Project[] = [
   {
+    title: "Qwen3 from Scratch in NumPy",
+    links: [
+      {
+        label: "GitHub",
+        href: "https://github.com/seungjun-green/Qwen3Implementations",
+      },
+    ],
+    bullets: [
+      "Implemented the Qwen3-0.6B LLM architecture from scratch in NumPy, including grouped-query attention (16 query / 8 KV heads), QK-Norm, rotary position embeddings (RoPE), SwiGLU MLPs, RMSNorm, and KV-cache decoding, and loaded the pretrained Hugging Face weights into the implementation.",
+      "Verified exact functional equivalence with the official Hugging Face model, matching its logits and next-token predictions at every position and reproducing its greedy generations token for token, via an automated Colab test suite.",
+    ],
+  },
+  {
     title: "Kaggle AIMO Season 3",
     links: [
       {
